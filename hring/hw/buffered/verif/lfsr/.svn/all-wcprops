@@ -1,0 +1,23 @@
+K 25
+svn:wc:ra_dav:version-url
+V 54
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/lfsr
+END
+c_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/cgi-bin/svn.cgi/!svn/ver/1429/router/trunk/verif/lfsr/c_constants.v
+END
+testbench.v
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/lfsr/testbench.v
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 63
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/lfsr/Makefile
+END

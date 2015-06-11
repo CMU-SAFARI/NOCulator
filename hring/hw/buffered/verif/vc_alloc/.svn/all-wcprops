@@ -1,0 +1,65 @@
+K 25
+svn:wc:ra_dav:version-url
+V 58
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc
+END
+c_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/cgi-bin/svn.cgi/!svn/ver/1161/router/trunk/verif/vc_alloc/c_constants.v
+END
+testbench.v
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/cgi-bin/svn.cgi/!svn/ver/1853/router/trunk/verif/vc_alloc/testbench.v
+END
+config_base.sh
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/config_base.sh
+END
+clone.sh
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/clone.sh
+END
+vcr_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 74
+/cgi-bin/svn.cgi/!svn/ver/1161/router/trunk/verif/vc_alloc/vcr_constants.v
+END
+sweep.sh
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/sweep.sh
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 67
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/Makefile
+END
+run.sh
+K 25
+svn:wc:ra_dav:version-url
+V 65
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/run.sh
+END
+c_functions.v
+K 25
+svn:wc:ra_dav:version-url
+V 72
+/cgi-bin/svn.cgi/!svn/ver/1452/router/trunk/verif/vc_alloc/c_functions.v
+END
+config.sh
+K 25
+svn:wc:ra_dav:version-url
+V 68
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/vc_alloc/config.sh
+END

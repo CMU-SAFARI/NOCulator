@@ -1,0 +1,55 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 21:03:52 2010
+****************************************
+
+ # A fanout number of 1000 was used for high fanout net computations.
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: enclosed
+
+  Startpoint: port0_c_0_r_reg[11]
+              (rising edge-triggered flip-flop)
+  Endpoint: port4_ack (output port)
+  Path Group: (none)
+  Path Type: max
+
+  Des/Clust/Port     Wire Load Model       Library
+  ------------------------------------------------
+  brouter            area_24Kto30K         CORE65LPSVT
+  ejector            area_2Kto3K           CORE65LPSVT
+  injector           area_2Kto3K           CORE65LPSVT
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  port0_c_0_r_reg[11]/CP (HS65_LS_DFPQX9)                 0.00 #     0.00 r
+  port0_c_0_r_reg[11]/Q (HS65_LS_DFPQX9)                  0.11       0.11 r
+  ej/c0[11] (ejector)                                     0.00       0.11 r
+  ej/U325/Z (HS65_LS_AND2X4)                              0.08       0.19 r
+  ej/U27/Z (HS65_LS_NOR4ABX4)                             0.33       0.51 r
+  ej/U324/Z (HS65_LS_BFX4)                                0.38       0.89 r
+  ej/U26/Z (HS65_LS_BFX9)                                 0.24       1.13 r
+  ej/U21/Z (HS65_LS_NOR3X4)                               0.20       1.33 f
+  ej/U318/Z (HS65_LS_BFX4)                                0.25       1.58 f
+  ej/U16/Z (HS65_LS_BFX9)                                 0.21       1.79 f
+  ej/U317/Z (HS65_LS_BFX4)                                0.23       2.01 f
+  ej/U20/Z (HS65_LS_BFX9)                                 0.20       2.22 f
+  ej/U316/Z (HS65_LS_NOR2AX3)                             0.15       2.37 r
+  ej/c2_o[11] (ejector)                                   0.00       2.37 r
+  ij/c2[11] (injector)                                    0.00       2.37 r
+  ij/U570/Z (HS65_LS_AND2X4)                              0.15       2.52 r
+  ij/U568/Z (HS65_LS_CBI4I1X5)                            0.05       2.57 f
+  ij/used (injector)                                      0.00       2.57 f
+  port4_ack (out)                                         0.00       2.57 f
+  data arrival time                                                  2.57
+  --------------------------------------------------------------------------
+  (Path is unconstrained)
+
+
+1

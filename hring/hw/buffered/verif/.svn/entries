@@ -1,0 +1,107 @@
+10
+
+dir
+2090
+http://nocs.stanford.edu/cgi-bin/svn.cgi/router/trunk/verif
+http://nocs.stanford.edu/cgi-bin/svn.cgi
+
+
+
+2010-06-01T20:46:44.811307Z
+2085
+dub
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+ce7aba0d-9f81-40a6-a495-cecae84b0515
+
+encoder
+dir
+
+router
+dir
+
+vc_alloc
+dir
+
+fifo
+dir
+
+credit_tracker
+dir
+
+one_hot_det
+dir
+
+add_nto1
+dir
+
+tc_node_mac
+dir
+
+incr
+dir
+
+tc_router_wrap
+dir
+
+sw_alloc
+dir
+
+decoder
+dir
+
+lfsr
+dir
+
+decr
+dir
+
+Makefile
+file
+
+
+
+
+2010-06-02T22:59:59.000000Z
+a56f3340742c41f449be8959d1dcd706
+2010-03-24T03:06:21.383017Z
+1853
+dub
+has-props
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+579
+
+tc_chan_test_mac
+dir
+

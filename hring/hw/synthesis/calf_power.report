@@ -1,0 +1,47 @@
+Loading db file '/afs/ece.cmu.edu/project/km_group/cad/pdk/ST_65/techFiles/CORE65LPSVT_nom_1.10V_25C.db'
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Warning: Design has unannotated primary inputs. (PWR-414)
+Warning: Design has unannotated sequential cell outputs. (PWR-415)
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 20:42:42 2010
+****************************************
+
+
+Library(s) Used:
+
+    CORE65LPSVT (File: /afs/ece.cmu.edu/project/km_group/cad/pdk/ST_65/techFiles/CORE65LPSVT_nom_1.10V_25C.db)
+
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: enclosed
+
+Design        Wire Load Model            Library
+------------------------------------------------
+brouter                area_24Kto30K     CORE65LPSVT
+ejector                area_2Kto3K       CORE65LPSVT
+injector               area_2Kto3K       CORE65LPSVT
+sortnet                area_5Kto6K       CORE65LPSVT
+
+
+Global Operating Voltage = 1.1  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1mW
+
+
+  Cell Internal Power  =  12.9466 mW   (86%)
+  Net Switching Power  =   2.1430 mW   (14%)
+                         ---------
+Total Dynamic Power    =  15.0896 mW  (100%)
+
+Cell Leakage Power     =   1.9111 uW
+
+1

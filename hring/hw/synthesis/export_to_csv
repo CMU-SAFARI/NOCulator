@@ -1,0 +1,49 @@
+#! /bin/bash 
+# Arguments. They are not checked so ensure that these are correct
+area=$1     # This is the content of the area report
+power=$2    # This is the content of the power report
+timing=$3   # This is the content of the timing report
+dtype=$4    # Design type, this is the router type we are storing
+dwidth=$5   # Number of bits in the data field
+arg1=$6     # First router specific argument
+arg2=$7     # Second router specific argument
+
+echo "Arguments passed in:"
+echo "design type: $dtype"
+echo "dwidth: $dwidth"
+echo "arg1: $arg1"
+echo "arg2: $arg2"
+
+
+#resultsfile="../results/results.csv"
+resultsfile="results.csv"
+
+carea=`echo "$area" | grep "Combinational area" | sed "s/Combinational area: *\([0-9]*\)/\1/g"`
+narea=`echo "$area" | grep "Noncombinational area" | sed "s/Noncombinational area: *\([0-9]*\)/\1/g"`
+tarea=`echo "$area" | grep "Total cell area" | sed "s/Total cell area: *\([0-9]*\)/\1/g"`
+dpow=`echo "$power" | grep "Total Dynamic" | sed "s/Total Dynamic Power *= *\([0-9]*\).\([0-9]*\).*/\1.\2/g"`
+lpow=`echo "$power" | grep "Cell Leakage" | sed "s/Cell Leakage Power *= *\([0-9]*\).\([0-9]*\).*/\1.\2/g"`
+tim=`echo "$timing" | grep "slack" | sed "s/ *slack ([A-Z]*) *\(-\)/\1/g"`
+
+
+##### File format: ####
+# [Design Name],[Data Width],[Age Width],[Num Nack Wires],[MSHR Count],
+# [Seq Count],[Combinational Area],[Noncombinational Area],[Total Area],
+# [Dynamic Power],[Leakage Power],[Arrival Time]
+
+
+# Write the correct line to the arguments file based on the router type
+if [ "$dtype" = "bless_gold" ]; then
+    echo "bless_gold,$dwidth,,,$arg1,$arg2,$carea,$narea,$tarea,$dpow,$lpow,$tim" >> "$resultsfile" 
+    echo "bless_gold written"
+fi
+
+if [ "$dtype" = "bless_age" ]; then
+    echo "bless_age,$dwidth,$arg1,,,,$carea,$narea,$tarea,$dpow,$lpow,$tim" >> "$resultsfile"
+    echo "bless_age written"
+fi
+
+if [ "$dtype" = "scarab" ]; then
+    echo "scarab,$dwidth,,$arg1,,,$carea,$narea,$tarea,$dpow,$lpow,$tim" >> "$resultsfile"
+    echo "scarab written"
+fi

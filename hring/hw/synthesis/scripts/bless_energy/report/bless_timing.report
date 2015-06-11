@@ -1,0 +1,41 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 21:04:09 2010
+****************************************
+
+ # A fanout number of 1000 was used for high fanout net computations.
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: enclosed
+
+  Startpoint: port2_r_reg[16]
+              (rising edge-triggered flip-flop)
+  Endpoint: port4_ready
+            (output port)
+  Path Group: (none)
+  Path Type: max
+
+  Des/Clust/Port     Wire Load Model       Library
+  ------------------------------------------------
+  brouter            area_30Kto36K         CORE65LPSVT
+
+  Point                                    Incr       Path
+  -----------------------------------------------------------
+  port2_r_reg[16]/CP (HS65_LS_DFPQX9)      0.00 #     0.00 r
+  port2_r_reg[16]/Q (HS65_LS_DFPQX9)       0.13       0.13 f
+  U1253/Z (HS65_LS_NOR4ABX2)               0.10       0.23 f
+  U1453/Z (HS65_LS_NAND4ABX3)              0.13       0.36 f
+  U1249/Z (HS65_LS_NAND4ABX3)              0.14       0.50 f
+  port4_ready (out)                        0.00       0.50 f
+  data arrival time                                   0.50
+  -----------------------------------------------------------
+  (Path is unconstrained)
+
+
+1

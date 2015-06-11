@@ -1,0 +1,59 @@
+K 25
+svn:wc:ra_dav:version-url
+V 66
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/tc_chan_test_mac
+END
+whr_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/cgi-bin/svn.cgi/!svn/ver/1680/router/trunk/verif/tc_chan_test_mac/whr_constants.v
+END
+c_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/cgi-bin/svn.cgi/!svn/ver/1680/router/trunk/verif/tc_chan_test_mac/c_constants.v
+END
+testbench.v
+K 25
+svn:wc:ra_dav:version-url
+V 78
+/cgi-bin/svn.cgi/!svn/ver/1853/router/trunk/verif/tc_chan_test_mac/testbench.v
+END
+iolist.tcl
+K 25
+svn:wc:ra_dav:version-url
+V 77
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/tc_chan_test_mac/iolist.tcl
+END
+parameters.v
+K 25
+svn:wc:ra_dav:version-url
+V 79
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/tc_chan_test_mac/parameters.v
+END
+vcr_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 82
+/cgi-bin/svn.cgi/!svn/ver/1680/router/trunk/verif/tc_chan_test_mac/vcr_constants.v
+END
+channel.v
+K 25
+svn:wc:ra_dav:version-url
+V 76
+/cgi-bin/svn.cgi/!svn/ver/1853/router/trunk/verif/tc_chan_test_mac/channel.v
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/tc_chan_test_mac/Makefile
+END
+c_functions.v
+K 25
+svn:wc:ra_dav:version-url
+V 80
+/cgi-bin/svn.cgi/!svn/ver/1680/router/trunk/verif/tc_chan_test_mac/c_functions.v
+END

@@ -1,0 +1,14 @@
+
+RC | Arb | XT  |
+         | RC  |  Arb  |  XT
+                       |  RC  |  Arb
+
+
+Basic unit:
+
+              data,hdr
+                 |
+                 v
+srcdst >|  RC  |  Arb  |  XT  -->  data,hdr
+                 |
+                 |__>srcdst

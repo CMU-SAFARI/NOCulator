@@ -1,0 +1,1341 @@
+//#define DEBUG
+//#define RETX_DEBUG
+//#define memD
+
+using System;
+using System.Collections.Generic;
+using System.Text;
+
+namespace ICSimulator
+{
+    public abstract class Router_Flit : Router
+    {
+        
+		ResubBuffer rBuf;
+		ulong       resubmitSkipCount;
+		
+		// injectSlot is from Node; injectSlot2 is higher-priority from
+        // network-level re-injection (e.g., placeholder schemes)
+        protected Flit m_injectSlot, m_injectSlot2;
+
+        public Router_Flit(Coord myCoord)
+            : base(myCoord)
+        {
+            m_injectSlot  = null;
+            m_injectSlot2 = null;
+			rBuf = new ResubBuffer();
+			if (Config.noResubmitSkip)
+				resubmitSkipCount = 0;
+        }
+
+        Flit handleGolden(Flit f)
+        {
+            if (f == null)
+                return f;
+
+            if (f.state == Flit.State.Normal)
+                return f;
+
+            if (f.state == Flit.State.Rescuer)
+            {
+                if (m_injectSlot == null)
+                {
+                    m_injectSlot = f;
+                    f.state = Flit.State.Placeholder;
+                }
+                else
+                    m_injectSlot.state = Flit.State.Carrier;
+
+                return null;
+            }
+
+            if (f.state == Flit.State.Carrier)
+            {
+                f.state = Flit.State.Normal;
+                Flit newPlaceholder = new Flit(null, 0);
+                newPlaceholder.state = Flit.State.Placeholder;
+
+                if (m_injectSlot != null)
+                    m_injectSlot2 = newPlaceholder;
+                else
+                    m_injectSlot = newPlaceholder;
+
+                return f;
+            }
+
+            if (f.state == Flit.State.Placeholder)
+                throw new Exception("Placeholder should never be ejected!");
+
+            return null;
+        }
+
+        // accept one ejected flit into rxbuf
+        protected void acceptFlit(Flit f)
+        {
+            statsEjectFlit(f);
+            if (f.packet.nrOfArrivedFlits + 1 == f.packet.nrOfFlits)
+                statsEjectPacket(f.packet);
+
+            m_n.receiveFlit(f);
+        }
+
+        Flit ejectLocal()
+        {
+            // eject locally-destined flit (highest-ranked, if multiple)
+            Flit ret = null;
+            int bestDir = -1;
+            for (int dir = 0; dir < 4; dir++)
+                if (linkIn[dir] != null && linkIn[dir].Out != null &&
+                    linkIn[dir].Out.state != Flit.State.Placeholder &&
+                    linkIn[dir].Out.dest.ID == ID &&
+                    (ret == null || rank(linkIn[dir].Out, ret) < 0))
+                {
+                    ret = linkIn[dir].Out;
+                    bestDir = dir;
+                }
+
+            if (bestDir != -1) linkIn[bestDir].Out = null;
+#if DEBUG
+            if (ret != null)
+                Console.WriteLine("ejecting flit {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
+#endif
+            ret = handleGolden(ret);
+
+            return ret;
+        }
+
+        Flit[] input = new Flit[4]; // keep this as a member var so we don't
+        // have to allocate on every step (why can't
+        // we have arrays on the stack like in C?)
+
+        protected override void _doStep()
+        {
+            Flit eject = ejectLocal();
+
+            for (int i = 0; i < 4; i++) input[i] = null;
+
+            // grab inputs into a local array so we can sort
+            int c = 0;
+            for (int dir = 0; dir < 4; dir++)
+                if (linkIn[dir] != null && linkIn[dir].Out != null)
+                {
+                    input[c++] = linkIn[dir].Out;
+                    linkIn[dir].Out.inDir = dir;
+                    linkIn[dir].Out = null;
+                }
+
+            // sometimes network-meddling such as flit-injection can put unexpected
+            // things in outlinks...
+            int outCount = 0;
+            for (int dir = 0; dir < 4; dir++)
+                if (linkOut[dir] != null && linkOut[dir].In != null)
+                    outCount++;
+
+            bool wantToInject = m_injectSlot2 != null || m_injectSlot != null;
+            bool canInject = (c + outCount) < neighbors;
+            //bool starved = wantToInject && !canInject;
+
+			
+			
+			if (canInject && Config.resubmitBuffer && !rBuf.isEmpty())
+            {
+               for (int i = 0; i < 4; i++)
+                   if (input[i] == null) 
+			       {
+                       input[i] = rBuf.removeFlit();
+                       statsInjectResubmit(input[i]);
+                       c++;
+                       break;
+                   }
+			}		
+			
+			canInject = (c + outCount) < neighbors;
+            bool starved = wantToInject && !canInject;
+			
+            if (starved)
+            {
+                Flit starvedFlit = null;
+                if (starvedFlit == null) starvedFlit = m_injectSlot2;
+                if (starvedFlit == null) starvedFlit = m_injectSlot;
+
+                Simulator.controller.reportStarve(coord.ID);
+                statsStarve(starvedFlit);
+            }
+            if (canInject && wantToInject)
+            {
+                Flit inj_peek = null; 
+                if(m_injectSlot2 != null)
+                    inj_peek = m_injectSlot2;
+                else if (m_injectSlot != null)
+                    inj_peek = m_injectSlot;
+                if(inj_peek == null)
+                    throw new Exception("Inj flit peek is null!!");
+
+                if(!Simulator.controller.ThrottleAtRouter || Simulator.controller.tryInject(coord.ID))
+                {
+                    Flit inj = null;
+                    if (m_injectSlot2 != null)
+                    {
+                        inj = m_injectSlot2;
+                        m_injectSlot2 = null;
+                    }
+                    else if (m_injectSlot != null)
+                    {
+                        inj = m_injectSlot;
+                        m_injectSlot = null;
+                    }
+                    else
+                        throw new Exception("what???inject null flits??");
+                    input[c++] = inj;
+#if DEBUG
+                    Console.WriteLine("injecting flit {0}.{1} at node {2} cyc {3}",
+                            m_injectSlot.packet.ID, m_injectSlot.flitNr, coord, Simulator.CurrentRound);
+#endif
+#if memD
+                    int r=inj.packet.requesterID;
+                    if(r==coord.ID)
+                        Console.WriteLine("inject flit at node {0}<>request:{1}",coord.ID,r);
+                    else
+                        Console.WriteLine("Diff***inject flit at node {0}<>request:{1}",coord.ID,r);
+#endif
+                    statsInjectFlit(inj);
+                }
+            }
+
+            if (eject != null)
+                acceptFlit(eject);
+
+            // inline bubble sort is faster for this size than Array.Sort()
+            // sort input[] by descending priority. rank(a,b) < 0 iff a has higher priority.
+            for (int i = 0; i < 4; i++)
+                for (int j = i + 1; j < 4; j++)
+                    if (input[j] != null &&
+                        (input[i] == null ||
+                         rank(input[j], input[i]) < 0))
+                    {
+                        Flit t = input[i];
+                        input[i] = input[j];
+                        input[j] = t;
+                    }
+			
+			int nrOfResubmitRemovals = 0;
+            // assign outputs
+            for (int i = 0; i < 4 && input[i] != null; i++)
+            {
+                PreferredDirection pd = determineDirection(input[i], coord);
+                int outDir = -1;
+                Flit tempFlit = input[i];
+				
+
+		        	
+		        if (pd.xDir != Simulator.DIR_NONE && linkOut[pd.xDir].In == null)
+                {
+                    linkOut[pd.xDir].In = input[i];
+                    outDir = pd.xDir;
+                    
+                    /* Refresh wasInBuf */
+               	 	if (Config.wasInRebufCycleRefresh)
+		        		tempFlit.wasInRebuf = false;
+                }
+
+                else if (pd.yDir != Simulator.DIR_NONE && linkOut[pd.yDir].In == null)
+                {
+                    linkOut[pd.yDir].In = input[i];
+                    outDir = pd.yDir;
+                    
+                    /* Refresh wasInBuf */
+                	if (Config.wasInRebufCycleRefresh)
+		        		tempFlit.wasInRebuf = false;
+                }
+
+                // deflect!
+                else
+                {
+                    input[i].Deflected = true;
+                    int dir = 0;
+					bool storeInResubmitBuffer = true;
+					int willBeResubmitted = 1;
+					
+					if (Config.resubmitBuffer)
+					{
+						/*if (Config.resubmitByRandom)
+							willBeResubmitted = random.Next(0,2);
+						else if (Config.resubmitByArbitraryOrder)
+							willBeResubmitted = 1;
+						else
+							throw new Exception("No resubmit order given");
+                        */
+					}
+					
+                    if (Config.randomize_defl) 
+                    	dir = Simulator.rand.Next(4); // randomize deflection dir (so no bias)
+                    
+                    for (int count = 0; count < 4; count++, dir = (dir + 1) % 4) {
+                    	if (linkOut[dir] != null && linkOut[dir].In == null) {
+
+                    		/* If using the resubmit buffer, and it will be resubmitted */
+							if (Config.resubmitBuffer && nrOfResubmitRemovals < Config.rebufRemovalCount /* && (i == 3 || input[(i+1)] == null)*/ && (willBeResubmitted == 1)) 
+							{
+								nrOfResubmitRemovals++;
+								
+								/* If skipping */
+								if (Config.noResubmitSkip && (resubmitSkipCount < Config.noResubmitSkipCount))
+								{
+									/* Increment skip counter */
+									resubmitSkipCount++;
+									
+									/* Statistics */
+			                        if (input[i].wasInRebuf)
+										Simulator.stats.rebuf_isRebufTwice.Add();
+					
+									if (input[i].currentX == input[i].dest.x && input[i].currentY == input[i].dest.y)
+										  Simulator.stats.rebuf_isLocalDest.Add();
+									
+									if (input[i].distance <= Config.noResubmitDist)
+										Simulator.stats.rebuf_isClose.Add();
+										
+									switch (dir) 
+									{
+										case Simulator.DIR_UP:    if (input[i].dest.y > input[i].currentY)
+																 	  Simulator.stats.rebuf_isProductive.Add();
+									                              break;
+									
+										case Simulator.DIR_DOWN:  if (input[i].dest.y < input[i].currentY)
+																 	  Simulator.stats.rebuf_isProductive.Add();
+									                              break;
+									
+										case Simulator.DIR_RIGHT: if (input[i].dest.x > input[i].currentX)
+																 	  Simulator.stats.rebuf_isProductive.Add();
+									                              break;
+									
+										case Simulator.DIR_LEFT:  if (input[i].dest.x < input[i].currentX)
+																 	  Simulator.stats.rebuf_isProductive.Add();
+									                              break;
+									}
+								}
+								/* If not skipping */
+								else 
+								{
+									/* Reset skip count */
+									if (Config.noResubmitSkip)
+										resubmitSkipCount = 0;
+								
+			                        /* If this flit just came out of the rebuf, should it go back in? */
+			                        if (input[i].wasInRebuf) 
+                                    {
+										Simulator.stats.rebuf_isRebufTwice.Add();
+										if (Config.noResubmitTwice)
+											storeInResubmitBuffer = false;
+									}
+					
+									/* If the flit needs to be ejected at this router, don't resubmit it? */
+									if (input[i].currentX == input[i].dest.x && input[i].currentY == input[i].dest.y) 
+                                    {
+										Simulator.stats.rebuf_isLocalDest.Add();
+										if (Config.noResubmitLocalDest)
+										    storeInResubmitBuffer = false;
+									}
+									
+									/* If the deflected flit still went in a productive direction, should it go in the rebuf? */
+									 
+									switch (dir) 
+									{
+										case Simulator.DIR_UP:    if (input[i].dest.y > input[i].currentY) 
+                                                                  {
+																 	  Simulator.stats.rebuf_isProductive.Add();
+																 	  if (Config.noResubmitProductive)
+																      	  storeInResubmitBuffer = false;
+									                              } break;
+									
+										case Simulator.DIR_DOWN:  if (input[i].dest.y < input[i].currentY) 
+                                                                  {
+																 	  Simulator.stats.rebuf_isProductive.Add();
+																 	  if (Config.noResubmitProductive)
+																      	  storeInResubmitBuffer = false;
+									                              } break;
+									
+										case Simulator.DIR_RIGHT: if (input[i].dest.x > input[i].currentX) 
+                                                                  {
+																 	  Simulator.stats.rebuf_isProductive.Add();
+																 	  if (Config.noResubmitProductive)
+																      	  storeInResubmitBuffer = false;
+									                              } break;
+									
+										case Simulator.DIR_LEFT:  if (input[i].dest.x < input[i].currentX) 
+                                                                  {
+																 	  Simulator.stats.rebuf_isProductive.Add();
+																 	  if (Config.noResubmitProductive)
+																      	  storeInResubmitBuffer = false;
+									                              } break;
+									}
+									
+									/* If the flit is close, should it go in the rebuf? */
+									if (input[i].distance <= Config.noResubmitDist)
+									{
+										Simulator.stats.rebuf_isClose.Add();
+										if (Config.noResubmitClose)
+											storeInResubmitBuffer = false;
+									}
+									
+									/* Prioritize the flits being put into the resubmit buffer */
+									if (storeInResubmitBuffer  && !rBuf.isFull()) 
+                                    {
+										input[i].nrInRebuf++;
+										input[i].wasInRebuf = true;
+
+										rBuf.addFlit(input[i]);
+										statsEjectResubmit(input[i]);
+										input[i] = null;
+									}
+									else
+									{
+									    /* Refresh wasInBuf */
+                						if (Config.wasInRebufCycleRefresh)
+		        							tempFlit.wasInRebuf = false;
+									}
+									
+									statsResubmitBuffer(rBuf);   
+								}
+							}
+
+							linkOut[dir].In = input[i];
+                        	outDir = dir;
+                        	break;
+						}    
+                        
+                    }
+
+                    if (outDir == -1) throw new Exception(
+                            String.Format("Ran out of outlinks in arbitration at node {0} on input {1} cycle {2} flit {3} c {4} neighbors {5} outcount {6}", coord, i, Simulator.CurrentRound, input[i], c, neighbors, outCount));
+                }
+            }
+        }
+
+		/* Takes stats when the resubmit buffer puts flits back into the network */
+	    protected void statsInjectResubmit(Flit f)
+        {
+            Simulator.stats.inject_resubmit.Add();
+            
+			if (f.isHeadFlit) 
+				Simulator.stats.inject_resubmit_head.Add();
+            
+			if (f.packet != null)
+            {
+                Simulator.stats.inject_resubmit_bysrc[f.packet.src.ID].Add();
+                //Simulator.stats.inject_flit_srcdest[f.packet.src.ID, f.packet.dest.ID].Add();
+            }
+        }
+
+		/* Takes stats when the resubmit buffer takes flits from the network */
+        protected void statsEjectResubmit(Flit f)
+        {
+            int tmp_dist = Math.Abs(f.currentX - f.packet.dest.x) + 
+						   Math.Abs(f.currentY - f.packet.dest.y);
+							
+            // per-flit stats
+            Simulator.stats.eject_resubmit.Add();
+            Simulator.stats.eject_resubmit_bydest[f.packet.dest.ID].Add();
+			Simulator.stats.eject_resubmit_distance.Add(f.distance);
+			
+			Simulator.stats.rebuf_InjectionTime.Add(f.injectionTime);
+			Simulator.stats.rebuf_NrOfDeflections.Add(f.nrOfDeflections);
+			Simulator.stats.rebuf_nrInRebuf.Add(f.nrInRebuf);
+			Simulator.stats.rebuf_Distance.Add(tmp_dist);
+			
+			if (f.isHeadFlit) 
+				Simulator.stats.rebuf_HeadFlits.Add();
+			
+			if (f.isTailFlit) 
+				Simulator.stats.rebuf_TailFlits.Add();
+			
+			if (f.wasInRebuf) 
+				Simulator.stats.rebuf_WasInRebuf.Add();
+        }
+
+		/* Takes stats once a cycle about the resubmit buffer */
+        protected void statsResubmitBuffer(ResubBuffer reBuf)
+        {
+            Simulator.stats.resubmit_flit_count_bycycle.Add(reBuf.count());
+            //Simulator.stats.resubmit_flit_count_byloc[reBuf.getNextFlit().currentX,reBuf.getNextFlit().currentY].Add(reBuf.count());
+        }
+		
+        public override bool canInjectFlit(Flit f)
+        {
+            return m_injectSlot == null;
+        }
+
+        public override void InjectFlit(Flit f)
+        {
+            if (m_injectSlot != null)
+                throw new Exception("Trying to inject twice in one cycle");
+
+            m_injectSlot = f;
+        }
+
+        public override void flush()
+        {
+            m_injectSlot = null;
+        }
+
+        protected virtual bool needFlush(Flit f) { return false; }
+    }
+
+    public class Router_Flit_OldestFirst : Router_Flit
+    {
+        public Router_Flit_OldestFirst(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        protected override bool needFlush(Flit f)
+        {
+            return Config.cheap_of_cap != -1 && age(f) > (ulong)Config.cheap_of_cap;
+        }
+
+        public static ulong age(Flit f)
+        {
+            if (Config.net_age_arbitration)
+                return Simulator.CurrentRound - f.packet.injectionTime;
+            else
+                return (Simulator.CurrentRound - f.packet.creationTime) /
+                        (ulong)Config.cheap_of;
+        }
+
+        public static int _rank(Flit f1, Flit f2)
+        {
+            if (f1 == null && f2 == null) return 0;
+            if (f1 == null) return  1;
+            if (f2 == null) return -1;
+
+
+            bool f1_resc = (f1.state == Flit.State.Rescuer) || (f1.state == Flit.State.Carrier);
+            bool f2_resc = (f2.state == Flit.State.Rescuer) || (f2.state == Flit.State.Carrier);
+            bool f1_place = (f1.state == Flit.State.Placeholder);
+            bool f2_place = (f2.state == Flit.State.Placeholder);
+
+			/* Rebuf Rankings */
+			/*
+			int cr = 0;
+			if(!Config.resubmitBuffer || !Config.resubmitFlitWins)
+				cr = 0;
+			else if(Config.resubmitFlitNrWins && !Config.resubmitFlitOneWins)
+			{
+				if      (f1.nrInRebuf == f2.nrInRebuf) cr =  0;
+				else if (f1.nrInRebuf >  f2.nrInRebuf) cr =  1;
+				else if (f1.nrInRebuf <  f2.nrInRebuf) cr = -1;
+			}
+			else if(Config.resubmitFlitOneWins)
+			{
+				if      ( f1.wasInRebuf &&  f2.wasInRebuf) cr =  0;
+				else if ( f1.wasInRebuf && !f2.wasInRebuf) cr =  1;
+				else if (!f1.wasInRebuf &&  f2.wasInRebuf) cr = -1;
+				else if (!f1.wasInRebuf && !f2.wasInRebuf) 
+					cr = 0; // -1 is better, but would that create livelock? 
+			}
+			else
+				throw new Exception("No resubmit scheme selected");
+			*/	
+			
+            int c0 = 0;
+			
+            if      (f1_resc  &&  f2_resc) c0 =  0;
+            else if              (f1_resc) c0 = -1;
+            else if              (f2_resc) c0 =  1;
+            else if (f1_place && f2_place) c0 =  0;
+            else if             (f1_place) c0 =  1;
+            else if             (f2_place) c0 = -1;
+
+            int c1 = 0, c2 = 0;
+            if (f1.packet != null && f2.packet != null)
+            {
+                c1 = -age(f1).CompareTo(age(f2));
+                c2 = f1.packet.ID.CompareTo(f2.packet.ID);
+            }
+
+            int c3 = f1.flitNr.CompareTo(f2.flitNr);
+
+            int zerosSeen = 0;
+            foreach (int i in new int[] { c0, c1, c2, c3 })
+            {
+                if (i == 0)
+                    zerosSeen++;
+                else
+                    break;
+            }
+            Simulator.stats.net_decisionLevel.Add(zerosSeen);
+
+            return
+				(c0 != 0) ? c0 : 
+				//(cr != 0) ? cr :
+                (c1 != 0) ? c1 :
+                (c2 != 0) ? c2 :
+                 c3;
+        }
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return _rank(f1, f2);
+        }
+
+        public override void visitFlits(Flit.Visitor fv)
+        {
+            if (m_injectSlot != null)
+                fv(m_injectSlot);
+            if (m_injectSlot2 != null)
+                fv(m_injectSlot2);
+        }
+    }
+
+    public class Router_Flit_Prio : Router_Flit
+    {
+        public Router_Flit_Prio(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        protected override bool needFlush(Flit f)
+        {
+            return Config.cheap_of_cap != -1 && age(f) > (ulong)Config.cheap_of_cap;
+        }
+
+        public static ulong age(Flit f)
+        {
+            if (Config.net_age_arbitration)
+                return Simulator.CurrentRound - f.packet.injectionTime;
+            else
+                return (Simulator.CurrentRound - f.packet.creationTime) /
+                        (ulong)Config.cheap_of;
+        }
+
+        public static int _rank(Flit f1, Flit f2)
+        {
+            if (f1 == null && f2 == null) return 0;
+            if (f1 == null) return 1;
+            if (f2 == null) return -1;
+
+            bool f1_resc = (f1.state == Flit.State.Rescuer) || (f1.state == Flit.State.Carrier);
+            bool f2_resc = (f2.state == Flit.State.Rescuer) || (f2.state == Flit.State.Carrier);
+            bool f1_place = (f1.state == Flit.State.Placeholder);
+            bool f2_place = (f2.state == Flit.State.Placeholder);
+
+            int c0 = 0;
+            if (f1_resc && f2_resc)
+                c0 = 0;
+            else if (f1_resc)
+                c0 = -1;
+            else if (f2_resc)
+                c0 = 1;
+            else if (f1_place && f2_place)
+                c0 = 0;
+            else if (f1_place)
+                c0 = 1;
+            else if (f2_place)
+                c0 = -1;
+
+            int c1 = 0, c2 = 0;
+            if (f1.packet != null && f2.packet != null)
+            {
+                //TODO: need to change here to take into account of the priority
+                c1 = -age(f1).CompareTo(age(f2));
+                c2 = f1.packet.ID.CompareTo(f2.packet.ID);
+            }
+
+            int c3 = f1.flitNr.CompareTo(f2.flitNr);
+
+            int zerosSeen = 0;
+            foreach (int i in new int[] { c0, c1, c2, c3 })
+            {
+                if (i == 0)
+                    zerosSeen++;
+                else
+                    break;
+            }
+            Simulator.stats.net_decisionLevel.Add(zerosSeen);
+
+            return
+                (c0 != 0) ? c0 :
+                (c1 != 0) ? c1 :
+                (c2 != 0) ? c2 :
+                c3;
+        }
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return _rank(f1, f2);
+        }
+
+        public override void visitFlits(Flit.Visitor fv)
+        {
+            if (m_injectSlot != null)
+                fv(m_injectSlot);
+            if (m_injectSlot2 != null)
+                fv(m_injectSlot2);
+        }
+    }
+
+    /*
+      Golden Packet is conceptually like this:
+      
+      for mshr in mshrs:
+        for node in nodes:
+          prioritize (node,mshr) request packet over all others, for L cycles
+
+      where L = X+Y for an XxY network. All non-prioritized packets are arbitrated
+      arbitrarily, if you will (say, round-robin).
+    */
+
+    public class Router_Flit_GP : Router_Flit
+    {    
+        public Router_Flit_GP(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        public static int _rank(Flit f1, Flit f2)
+        {
+            // priority is:
+            // 1. Carrier (break ties by dest ID)
+            // 2. Rescuer (break ties by dest ID)
+            // 3. Golden normal flits (break ties by flit no.)
+            // 4. Non-golden normal flits (break ties arbitrarily)
+            // 5. Placeholders
+
+			
+            if (f1 == null && f2 == null)
+                return  0;
+
+            if (f1 == null)
+            {
+            	if (Config.prioByInfection && f2.infected)
+                	cure(f2);
+                return  1;
+            }
+            
+            if (f2 == null)
+            {
+                if (Config.prioByInfection && f1.infected)
+                	cure(f1);
+                return -1;
+            }
+
+            if (f1.state == Flit.State.Carrier && f2.state == Flit.State.Carrier)
+                return f1.dest.ID.CompareTo(f2.dest.ID);
+            else if (f1.state == Flit.State.Carrier)
+                return -1;
+            else if (f2.state == Flit.State.Carrier)
+                return 1;
+
+            if (f1.state == Flit.State.Rescuer && f2.state == Flit.State.Rescuer)
+                return f1.dest.ID.CompareTo(f2.dest.ID);
+            else if (f1.state == Flit.State.Carrier)
+                return -1;
+            else if (f2.state == Flit.State.Carrier)
+                return 1;
+
+            if (f1.state == Flit.State.Normal && f2.state == Flit.State.Normal)
+            {
+                bool golden1 = Simulator.network.golden.isGolden(f1),
+                     golden2 = Simulator.network.golden.isGolden(f2);
+				
+                if (golden1 && golden2) {
+                    int g1 = Simulator.network.golden.goldenLevel(f1),
+                        g2 = Simulator.network.golden.goldenLevel(f2);
+
+                    if (g1 != g2)
+                        return g1.CompareTo(g2);
+                    else
+                        return f1.flitNr.CompareTo(f2.flitNr);
+                }
+                else if (golden1)
+                    return -1;
+                else if (golden2)
+                    return  1;
+                else {
+                	f1.priority = 0;
+                	f2.priority = 0;
+                	
+                	if (Config.deflPrio) {
+                		f1.priority += (f1.wasDeflected) ? 1 : 0;
+                		f2.priority += (f2.wasDeflected) ? 1 : 0;
+                	}
+                	
+                	if (Config.initFlitPrio) {
+                		f1.priority += (f1.initPrio > 1) ? 1 : 0;
+                		f2.priority += (f2.initPrio > 1) ? 1 : 0;
+                	}
+                	
+                	if (Config.packetPrio) {
+                		f1.priority += (f1.packet.chip_prio > 1) ? 1 : 0;
+                		f2.priority += (f2.packet.chip_prio > 1) ? 1 : 0;
+                	}
+                	
+                	if (Config.rebufPrio) {
+                		f1.priority += (f1.wasInRebuf) ? 1 : 0;
+                		f2.priority += (f2.wasInRebuf) ? 1 : 0;
+                	}
+                	
+                	if (Config.infectPrio) {
+                		f1.priority += (f1.infected) ? 1 : 0;
+                		f2.priority += (f2.infected) ? 1 : 0;
+                	}
+                	
+                	if (Config.deflectOverInitPrio) {
+                		f1.priority += (f1.wasDeflected) ? 2 : (f1.initPrio > 1) ? 1 : 0;
+                		f2.priority += (f2.wasDeflected) ? 2 : (f2.initPrio > 1) ? 1 : 0;
+                	}
+                	
+                	if (Config.distancePrio) {
+                		int distance1 = Math.Abs(f1.currentX - f1.packet.dest.x) + Math.Abs(f1.currentY - f1.packet.dest.y); 
+                		int distance2 = Math.Abs(f2.currentX - f2.packet.dest.x) + Math.Abs(f2.currentY - f2.packet.dest.y);
+                		f1.priority += (distance1 < distance2) ? 1 : 0;
+                		f2.priority += (distance1 > distance2) ? 1 : 0;
+                	}
+                	deflectInfect(f1, f2);
+                	/*
+                	if (Config.packetPrio) {
+		            	int prio1 = f1.packet.chip_prio;
+		            	int prio2 = f2.packet.chip_prio;
+		            	if(prio1 > prio2)
+		            		return (Config.orig_prio) ? 1 : -1;
+		            	else if (prio1 < prio2)
+		            		return (Config.orig_prio) ? -1 :  1;
+		            	else
+		            		return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+          			}
+          			else if (Config.deflPrio) {
+							int prio1 = f1.priority;
+							int prio2 = f2.priority;
+					
+							if (prio1 > prio2)
+								return (Config.orig_prio) ? 1 : -1;
+							else if (prio1 < prio2)
+								return  (Config.orig_prio) ? -1 : 1;
+							else
+								return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+					}
+					else if (Config.rebufPrio) {
+						bool prio1 = f1.wasInRebuf;
+						bool prio2 = f2.wasInRebuf;
+						if (prio1 && !prio2)			
+							return (Config.orig_prio) ? 1 : -1;
+						else if (!prio1 && prio2)
+							return  (Config.orig_prio) ? -1 : 1;
+						else
+							return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+					}
+					else if (Config.infectPrio) {
+						return priorityByInfection(f1, f2);
+					} 
+					        	
+                	// Prioritizing schemes including resubmit buffer 
+					//if (Config.prioByDefl && Config.resubmitBuffer)
+					//	throw new Exception("Multiple ordering schemes selected");
+					
+					
+					if (Config.prioByInfection) {
+						int ret = priorityByInfection(f1,f2);
+						deflectInfect(f1,f2);
+						return ret;
+					}
+						
+					if (Config.prioByDefl)
+						return priorityByDeflection(f1,f2);
+					else if (Config.resubmitBuffer && Config.resubmitFlitWins)
+						return priorityByResubmit(f1,f2);			
+					else
+					*/
+					
+					if(f1.priority > f2.priority)
+						return (Config.orig_prio) ?  1 : -1;
+					else if (f1.priority < f2.priority)
+						return (Config.orig_prio) ? -1 :  1;
+					else
+					{
+						if (Config.prioComplexDist) {
+							return complexDist(f1, f2);
+						}
+						else {
+                    		return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+						}
+					}
+				}
+            }
+            else if (f1.state == Flit.State.Normal)
+                return -1;
+            else if (f2.state == Flit.State.Normal)
+                return 1;
+            else
+                // both are placeholders
+                return Simulator.rand.Next(3) - 1;
+        }
+        
+        protected static int updatePriority(Flit f)
+        {
+            int distance = Math.Abs(f.currentX - f.packet.dest.x) + Math.Abs(f.currentY - f.packet.dest.y); 
+            
+            if (Config.deflPrio)
+                f.priority += (f.wasDeflected) ? 1 : 0;
+            
+            if (Config.initFlitPrio)
+                f.priority += f.initPrio;
+            
+            if (Config.packetPrio)
+                f.priority += f.packet.chip_prio;
+            
+            if (Config.rebufPrio)
+                f1.priority += (f1.wasInRebuf) ? 1 : 0;
+            
+            if (Config.infectPrio)
+                f.priority += (f.infected) ? 1 : 0;
+            
+            if (Config.deflectOverInitPrio)
+                f.priority += (f.wasDeflected) ? 2 : (f.initPrio > 1) ? 1 : 0;
+            
+            if (Config.distancePrio)
+                f.priority += distance;
+        }
+
+		/* For prioritizing schemes for chipper */
+		protected static int priorityByDeflection(Flit f1, Flit f2)
+		{
+			/* Prioritizing deflected flits over non deflected */
+			if (!Config.prioByDefl && !Config.resubmitPrioWins)
+				throw new Exception("I don't know why this method is being called");
+
+            if (Config.packetPrio) {
+            	int prio1 = f1.packet.chip_prio;
+            	int prio2 = f2.packet.chip_prio;
+            	if(prio1 > prio2)
+            		return 1;
+            	else if (prio1 < prio2)
+            		return -1;
+            	else
+            		return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+            }
+            else if (Config.deflPrio) {
+	            
+				if (Config.prioTypes) {
+					int prio1 = f1.priority;
+					int prio2 = f2.priority;
+					
+					if (prio1 > prio2)
+						return  1;
+					else if (prio1 < prio2)
+						return -1;
+					else
+						return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+				}
+				else {
+					bool def1 = (f1.priority == 1);
+		            bool def2 = (f2.priority == 1);
+		            
+					if (def1 && def2) {
+						Simulator.stats.prio_bothDeflected.Add();
+						
+						if (Config.prioComplexDist) {
+							return complexDist(f1, f2);
+						}
+						else {
+							if (Config.prioByArbitrary && !Config.prioByRandom)
+								return -1;
+							else if (Config.prioByRandom && !Config.prioByArbitrary)
+								return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+							else
+								throw new Exception("More than 1 or no prio schemes were selected");
+						}
+					}
+					else if (def1) {
+						Simulator.stats.prio_oneDeflected.Add();
+						return  1;
+					}
+					else if (def2) {
+						Simulator.stats.prio_oneDeflected.Add();
+						return -1;
+					}
+					else { 
+						Simulator.stats.prio_noneDeflected.Add();
+						if (Config.prioByArbitrary && !Config.prioByRandom)
+							return -1;
+						else if (Config.prioByRandom && !Config.prioByArbitrary)
+							return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+						else
+							throw new Exception("More than 1 or no prio schemes were selected");
+					}	
+				}
+			}
+			else
+				throw new Exception("Packet vs flit prio not picked"); 
+		}
+	
+		protected static int complexDist(Flit f1, Flit f2)
+		{
+			int f1_dist = Math.Abs(f1.currentX - f1.packet.dest.x) + Math.Abs(f1.currentY - f1.packet.dest.y);
+			int f2_dist = Math.Abs(f2.currentX - f2.packet.dest.x) + Math.Abs(f2.currentY - f2.packet.dest.y);
+							
+			if (f1_dist == 0 && f2_dist == 0) {
+				Simulator.stats.prio_bothZeroDistance.Add();
+				return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+			}
+			else if (f1_dist == 0) {
+				Simulator.stats.prio_oneZeroDistance.Add();
+				return  1;
+			}
+			else if (f2_dist == 0) {
+				Simulator.stats.prio_oneZeroDistance.Add();
+				return -1;
+			}
+			else {
+				Simulator.stats.prio_noneZeroDistance.Add();
+		
+				if (f1_dist < f2_dist)
+					Simulator.stats.prio_f2GreaterDistance.Add();
+				else if (f1_dist > f2_dist)
+					Simulator.stats.prio_f1GreaterDistance.Add();
+				else
+					Simulator.stats.prio_noneGreaterDistance.Add();
+				
+				if (f1_dist == f2_dist)
+					return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+				else {
+					if (Config.prioComplexDist) {
+						if(f1_dist < f2_dist)
+							return -1;
+						else
+							return  1;
+					}
+
+					return (1 == Simulator.rand.Next(2)) ? -1 : 1; 
+				}
+			}
+		}
+
+		/* For use with a resubmit buffer */
+		protected static int priorityByResubmit(Flit f1, Flit f2)
+		{
+			/* Prioritizing resubmit buffer */
+            if (!Config.resubmitBuffer || !Config.resubmitFlitWins)
+            	throw new Exception("This shouldn't be called");
+            	
+            if (Config.resubmitPrioWins) 
+				return priorityByDeflection(f1, f2);
+            else if (Config.resubmitFlitNrWins) {
+                if (f1.nrInRebuf > f2.nrInRebuf) {
+                    Simulator.stats.rebuf_oneWin.Add();
+                    return  1;
+                }
+                else if (f1.nrInRebuf < f2.nrInRebuf) {
+                    Simulator.stats.rebuf_oneWin.Add();
+                    return  -1;
+                }
+                else {
+                    Simulator.stats.rebuf_noneWin.Add();
+                    return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+                }       
+			}
+			else if (Config.resubmitFlitOneWins) {
+				/* Works the best on high even though I meant to use an xnor? */
+				if (f1.wasInRebuf && f2.wasInRebuf) {
+					Simulator.stats.rebuf_bothWin.Add();
+					return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+				}
+				else if (f1.wasInRebuf) {
+					Simulator.stats.rebuf_oneWin.Add();
+					return 1;
+				}
+				else if (f2.wasInRebuf) {
+					Simulator.stats.rebuf_oneWin.Add();
+					return -1;
+				}
+				else {
+					Simulator.stats.rebuf_noneWin.Add();
+					return (1 == Simulator.rand.Next(2)) ? -1 : 1; //Was -1
+				}	//return (f1.wasInRebuf) ? 1 : -1;
+			}
+			else
+				throw new Exception("No resubmit scheme selected");
+		}
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return Router_Flit_GP._rank(f1, f2);
+        }
+        
+        /*  
+         * Deflection infection follows these rules:
+         * 1. A certain % of flits are injected already infected
+         * 2. Every time a non-infected flit "contacts" an infected flit 
+         *      during a comparison the non-infected flit has a probability 
+         *      of becoming infected.
+         * 3. Infected flits have a probability of being "cured" every 
+         	    time they are compared
+         * 4. Infected flits are prioritized over non-inflected flits.
+         */
+        protected static int priorityByInfection(Flit f1, Flit f2)
+        {
+        	if (f1.infected ^ f2.infected) {
+        		if (f1.infected)
+        			return (Config.orig_prio) ? 1 : -1;
+        		else
+        			return (Config.orig_prio) ? -1 : 1;
+        	}
+        	else 
+        		return (1 == Simulator.rand.Next(2)) ? -1 : 1;
+        }
+        
+        /* Infects and cures flits */
+        protected static void deflectInfect(Flit f1, Flit f2)
+        {
+        	bool c1 = false;
+        	bool c2 = false;
+        	bool i1 = false;
+        	bool i2 = false;
+        	
+        	if(f1 == null && f2 == null)
+        		return;
+        	else if(f1 != null)
+        		c1 = cure(f1);
+        	else if(f2 != null)
+        		c2 = cure(f2);
+        	else 
+        	{
+	        	if(f1.infected && f2.infected)
+	        	{
+	        		c1 = cure(f1);
+	        		c2 = cure(f2);
+	        	}
+	        	else if (f1.infected)
+	        	{
+	        		i2 = infect(f2);
+	        		c1 = cure(f1);
+	        	}
+	        	else if (f2.infected)
+	        	{
+	        		i1 = infect(f1);
+	        		c2 = cure(f2);
+	        	}
+	    	}
+	    	statsDeflectionInfection(f1, f2, c1, c2, i1, i2);
+        }
+        
+        protected static void statsDeflectionInfection(Flit f1, Flit f2, bool cure1, bool cure2, bool infect1, bool infect2)
+        {
+        	if (f1 != null)
+        	{
+        		if (cure1)
+        			Simulator.stats.cureCount.Add();	
+        		if (infect1)
+        			Simulator.stats.infectCount.Add();
+        	}
+        	if (f2 != null)
+        	{
+        		if (cure2)
+        			Simulator.stats.cureCount.Add();
+        		if (infect2)
+        			Simulator.stats.infectCount.Add();
+        		
+        	}
+        } 
+        
+        /* Infects flits */
+        protected static bool infect(Flit f)
+        {
+        	if (f != null && !f.infected)
+        	{
+        		if (Simulator.rand.Next(0,100) < Config.infectionRate) {
+					f.infected = true;
+					return true;
+				}
+        	}
+        	return false;
+        }
+        
+        /* Cures flits */
+        protected static bool cure(Flit f)
+        {
+        	if (f != null && f.infected)
+        	{
+        		if(Simulator.rand.Next(0,100) < Config.cureRate) {
+        			f.infected = false;
+        			return true;
+        		}
+        	}
+        	return false;
+        }
+    }
+
+    public class Router_Flit_Random : Router_Flit
+    {
+        public Router_Flit_Random(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+        
+		public static int _rank(Flit f1, Flit f2)
+		{
+			return Simulator.rand.Next(3) - 1; // one of {-1,0,1}
+		}
+		
+        public override int rank(Flit f1, Flit f2)
+        {
+            return _rank(f1, f2);
+        }
+    }
+
+    public class Router_Flit_Exhaustive : Router_Flit
+    {
+        const int LOCAL = 4;
+        public Router_Flit_Exhaustive(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        protected override void _doStep()
+        {
+            int index;
+            int bestPermutationProgress = -1;
+            IEnumerable<int> bestPermutation = null;
+
+            foreach (IEnumerable<int> thisPermutation in PermuteUtils.Permute<int>(new int[] { 0, 1, 2, 3, 4 }, 4))
+            {
+                index = 0;
+                int thisPermutationProgress = 0;
+                foreach (int direction in thisPermutation)
+                {
+                    Flit f = linkIn[index++].Out;
+                    if (f == null)
+                        continue;
+
+                    if (direction == LOCAL)
+                    {
+                        if (f.dest.ID == this.ID)
+                            thisPermutationProgress++;
+                        else
+                            goto PermutationDone; // don't allow ejection of non-arrived flits
+                    }
+                    else if (isDirectionProductive(f.packet.dest, direction))
+                        thisPermutationProgress++;
+                    //Console.Write(" " + direction);
+                }
+
+                if (thisPermutationProgress > bestPermutationProgress)
+                {
+                    bestPermutation = thisPermutation;
+                    bestPermutationProgress = thisPermutationProgress;
+                }
+            PermutationDone:
+                continue;
+            }
+
+            index = 0;
+            foreach (int direction in bestPermutation)
+            {
+                Flit f = linkIn[index++].Out;
+                //Console.Write(" {1}->{0}", direction, (f == null ? "null" : f.dest.ID.ToString()));
+                if (direction == LOCAL)
+                    this.acceptFlit(f);
+                else
+                {
+                    if (f != null && !isDirectionProductive(f.packet.dest, direction))
+                        f.Deflected = true;
+                    linkOut[direction].In = f;
+                }
+            }
+            //Console.WriteLine();
+            //throw new Exception("Done!");
+        }
+    }
+
+    public class Router_Flit_Ctlr : Router_Flit
+    {
+        public Router_Flit_Ctlr(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return Simulator.controller.rankFlits(f1, f2);
+        }
+    }
+    
+	public class Router_Flit_ClosestFirst : Router_Flit
+    {
+        public Router_Flit_ClosestFirst(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        protected override bool needFlush(Flit f)
+        {
+            return Config.cheap_of_cap != -1 && distance(f) > (int)Config.cheap_of_cap;
+        }
+
+ 		public static int distance(Flit f)
+ 		{
+ 			return Math.Abs(f.currentX - f.packet.dest.x) + Math.Abs(f.currentY - f.packet.dest.y); 
+        }
+
+        public static int _rank(Flit f1, Flit f2)
+        {
+            if (f1 == null && f2 == null) return  0;
+            if (f1 == null) 			  return  1;
+            if (f2 == null) 			  return -1;
+
+
+            bool f1_resc  = (f1.state == Flit.State.Rescuer) || 
+            				(f1.state == Flit.State.Carrier);
+            bool f2_resc  = (f2.state == Flit.State.Rescuer) || 
+            				(f2.state == Flit.State.Carrier);
+            bool f1_place = (f1.state == Flit.State.Placeholder);
+            bool f2_place = (f2.state == Flit.State.Placeholder);
+
+            int c0 = 0;
+			
+            if      (f1_resc  &&  f2_resc) c0 =  0;
+            else if              (f1_resc) c0 = -1;
+            else if              (f2_resc) c0 =  1;
+            else if (f1_place && f2_place) c0 =  0;
+            else if             (f1_place) c0 =  1;
+            else if             (f2_place) c0 = -1;
+
+            int c1 = 0, c2 = 0;
+            if (f1.packet != null && f2.packet != null)
+            {
+                c1 = -distance(f1).CompareTo(distance(f2));
+                c2 = f1.packet.ID.CompareTo(f2.packet.ID);
+            }
+
+            int c3 = f1.flitNr.CompareTo(f2.flitNr);
+
+            int zerosSeen = 0;
+            foreach (int i in new int[] { c0, c1, c2, c3 })
+            {
+                if (i == 0)
+                    zerosSeen++;
+                else
+                    break;
+            }
+            Simulator.stats.net_decisionLevel.Add(zerosSeen);
+
+            return
+				(c0 != 0) ? c0 : 
+				//(cr != 0) ? cr :
+                (c1 != 0) ? c1 :
+                (c2 != 0) ? c2 :
+                 c3;
+        }
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return _rank(f1, f2);
+        }
+
+        public override void visitFlits(Flit.Visitor fv)
+        {
+            if (m_injectSlot != null)
+                fv(m_injectSlot);
+            if (m_injectSlot2 != null)
+                fv(m_injectSlot2);
+        }
+    }
+}

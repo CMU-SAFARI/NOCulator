@@ -1,0 +1,77 @@
+# ece 18-447 script.
+#
+# This script will modify your environment variables and allow you to
+# run verilog and modelsim on the andrew machines. It should work on all of the
+# andrew servers and the ece cluster machines.
+#
+# to run:  type source setup_bash
+#
+
+#This adds the path for vsim, and this definition for Modeltech/vsim.
+#Also, the second part of LM_LICENSE_FILE points to the vsim license.
+
+
+# Design Compiler and Cadence path setup scripts 
+# Written Fall 2004 to work on ECE Solaris 9 boxes by Jared Smolens
+#
+# If you break this script, you own it.  
+#
+export SYNOPSYS=/afs/ece/support/synopsys
+export MGC_HOME=/afs/ece/support/mgc/share/image/usr/local/mgc
+export CDS_HOME=/afs/ece/support/cds/4.4.5/share/image
+
+case `sys` in
+    i386*)
+    OS=linux;
+    ;;
+    x86-64*)
+    OS=linux;
+    ;;
+    amd64*)
+    OS=linux;
+    ;;
+    sun4x*)
+    OS=sparcOS5;
+    ;;
+    
+    *)
+     echo "$0: Unknown system type"
+     exit 1
+     ;;
+esac
+
+if ! [  `export| grep PATH | grep '$MGC_HOME/modelsim/modeltech/bin'|wc -l`  -gt 0 ]; then
+ export PATH=$PATH:$MGC_HOME/bin:$MGC_HOME/modelsim/modeltech/bin
+fi
+
+
+if ! [  `export|grep '$SYNOPSYS'|wc -l`  -gt 0 ]; then
+   #export PATH=$PATH:$SYNOPSYS/2004.06/share/image/usr/local/synopsys/2004.06/$OS/syn/bin
+   #export PATH=$PATH:/afs/ece/support/synopsys/synopsys.release/synopsys-2005.09/bin
+   export PATH=$PATH:/afs/ece/support/synopsys/synopsys.release/synopsys-2007.03-SP5/bin
+fi
+
+if ! [  `export|grep '$CDS_HOME/usr/cds/dsm-se-5.3/tools/dsm/bin'|wc -l`  -gt 0 ]; then
+  export PATH=$PATH:$CDS_HOME/usr/cds/dsm-se-5.3/tools/dsm/bin:$CDS_HOME/usr/cds/dsm/tools/dsm/bin:$CDS_HOME/usr/cds/ic/tools/dfII/bin
+fi
+
+if [ $LM_LICENSE_FILE ]; then	
+   if ! [ `echo $LM_LICENSE_FILE|grep $MGC_HOME/license.dat|wc -l` -gt 0 ]; then
+         export LM_LICENSE_FILE=$LM_LICENSE_FILE:$MGC_HOME/license.dat
+   fi
+else
+         export LM_LICENSE_FILE=$MGC_HOME/license.dat
+fi
+
+if [ $LM_LICENSE_FILE ]; then	
+   if ! [ `echo $LM_LICENSE_FILE|grep $SYNOPSYS/license.dat|wc -l` -gt 0 ]; then
+         export LM_LICENSE_FILE=$LM_LICENSE_FILE:$SYNOPSYS/license.dat
+   fi
+else
+         export LM_LICENSE_FILE=$SYNOPSYS/license.dat
+fi
+
+# class bin directory
+if ! [ `export|grep '/afs/ece/class/ece447/bin' |wc -l` -gt 0 ]; then
+ export PATH=/afs/ece/class/ece447/bin:$PATH
+fi

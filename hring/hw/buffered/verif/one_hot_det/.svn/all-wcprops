@@ -1,0 +1,29 @@
+K 25
+svn:wc:ra_dav:version-url
+V 61
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/one_hot_det
+END
+c_constants.v
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/cgi-bin/svn.cgi/!svn/ver/1749/router/trunk/verif/one_hot_det/c_constants.v
+END
+testbench.v
+K 25
+svn:wc:ra_dav:version-url
+V 73
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/one_hot_det/testbench.v
+END
+Makefile
+K 25
+svn:wc:ra_dav:version-url
+V 70
+/cgi-bin/svn.cgi/!svn/ver/1855/router/trunk/verif/one_hot_det/Makefile
+END
+c_functions.v
+K 25
+svn:wc:ra_dav:version-url
+V 75
+/cgi-bin/svn.cgi/!svn/ver/1749/router/trunk/verif/one_hot_det/c_functions.v
+END

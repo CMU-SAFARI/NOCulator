@@ -1,0 +1,26 @@
+Information: Updating design information... (UID-85)
+Warning: Design 'brouter' contains 1 high-fanout nets. A fanout number of 1000 will be used for delay calculations involving these nets. (TIM-134)
+ 
+****************************************
+Report : area
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 20:42:35 2010
+****************************************
+
+Library(s) Used:
+
+    CORE65LPSVT (File: /afs/ece.cmu.edu/project/km_group/cad/pdk/ST_65/techFiles/CORE65LPSVT_nom_1.10V_25C.db)
+
+Number of ports:             1444
+Number of nets:              5209
+Number of cells:             2611
+Number of references:          10
+
+Combinational area:       12166.959904
+Noncombinational area:    15856.880383
+Net Interconnect area:      undefined  (Wire load has zero net area)
+
+Total cell area:          28023.839844
+Total area:                 undefined
+1

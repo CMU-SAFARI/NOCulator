@@ -1,0 +1,13 @@
+K 10
+svn:ignore
+V 21
+._*
+.DS_Store
+*~
+#*#
+
+K 13
+svn:mergeinfo
+V 37
+/router/branches/tickets/45:1467-1509
+END

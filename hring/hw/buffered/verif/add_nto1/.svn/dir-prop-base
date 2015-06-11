@@ -1,0 +1,9 @@
+K 10
+svn:ignore
+V 21
+._*
+.DS_Store
+*~
+#*#
+
+END

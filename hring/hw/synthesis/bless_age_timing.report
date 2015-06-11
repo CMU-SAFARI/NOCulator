@@ -1,0 +1,126 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 20:59:51 2010
+****************************************
+
+ # A fanout number of 1000 was used for high fanout net computations.
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: enclosed
+
+  Startpoint: age_s1/control1_out_reg[12]
+              (rising edge-triggered flip-flop clocked by clk)
+  Endpoint: cx/control2_out_reg[22]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Des/Clust/Port     Wire Load Model       Library
+  ------------------------------------------------
+  brouter            area_36Kto42K         CORE65LPSVT
+  priority_comparator
+                     area_4Kto5K           CORE65LPSVT
+  arbitor            area_6Kto7K           CORE65LPSVT
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  age_s1/control1_out_reg[12]/CP (HS65_LS_DFPQX9)         0.00 #     0.00 r
+  age_s1/control1_out_reg[12]/Q (HS65_LS_DFPQX9)          0.13       0.13 f
+  U986/Z (HS65_LS_IVX27)                                  0.04       0.17 r
+  arb/control1_in[12] (arbitor)                           0.00       0.17 r
+  arb/priorc/control1[12] (priority_comparator)           0.00       0.17 r
+  arb/priorc/U371/Z (HS65_LS_NOR2X19)                     0.03       0.19 f
+  arb/priorc/U228/Z (HS65_LS_CNIVX27)                     0.02       0.21 r
+  arb/priorc/U230/Z (HS65_LS_NAND2X29)                    0.02       0.23 f
+  arb/priorc/U236/Z (HS65_LS_AOI211X26)                   0.04       0.28 r
+  arb/priorc/U244/Z (HS65_LS_OAI211X16)                   0.04       0.32 f
+  arb/priorc/U247/Z (HS65_LS_CBI4I1X21)                   0.05       0.37 r
+  arb/priorc/U183/Z (HS65_LS_NAND3AX19)                   0.05       0.41 f
+  arb/priorc/U184/Z (HS65_LS_NAND3X25)                    0.03       0.45 r
+  arb/priorc/U187/Z (HS65_LS_IVX71)                       0.03       0.48 f
+  arb/priorc/U69/Z (HS65_LS_CNIVX62)                      0.03       0.51 r
+  arb/priorc/U70/Z (HS65_LS_MUXI21X15)                    0.06       0.57 r
+  arb/priorc/U81/Z (HS65_LS_OR2X35)                       0.06       0.63 r
+  arb/priorc/U84/Z (HS65_LS_AOI12X23)                     0.02       0.65 f
+  arb/priorc/U134/Z (HS65_LS_AOI312X17)                   0.06       0.71 r
+  arb/priorc/U91/Z (HS65_LS_OAI13X30)                     0.05       0.76 f
+  arb/priorc/U93/Z (HS65_LS_CBI4I1X21)                    0.05       0.81 r
+  arb/priorc/U204/Z (HS65_LS_NAND2X57)                    0.05       0.86 f
+  arb/priorc/U206/Z (HS65_LS_MUX21X18)                    0.08       0.94 f
+  arb/priorc/U332/Z (HS65_LS_AOI211X18)                   0.05       0.99 r
+  arb/priorc/U335/Z (HS65_LS_PAOI2X11)                    0.04       1.03 f
+  arb/priorc/U221/Z (HS65_LS_AOI21X23)                    0.04       1.07 r
+  arb/priorc/U222/Z (HS65_LS_CBI4I6X14)                   0.04       1.11 f
+  arb/priorc/U359/Z (HS65_LS_OAI211X16)                   0.05       1.16 r
+  arb/priorc/U224/Z (HS65_LS_OAI211X33)                   0.05       1.21 f
+  arb/priorc/U225/Z (HS65_LS_MUXI21X15)                   0.06       1.27 r
+  arb/priorc/priority1[0] (priority_comparator)           0.00       1.27 r
+  arb/U66/Z (HS65_LS_BFX106)                              0.06       1.34 r
+  arb/U70/Z (HS65_LS_IVX49)                               0.02       1.36 f
+  arb/U84/Z (HS65_LS_NAND2X29)                            0.02       1.38 r
+  arb/U86/Z (HS65_LS_OAI22X22)                            0.03       1.40 f
+  arb/U217/Z (HS65_LS_NOR3X26)                            0.04       1.44 r
+  arb/U133/Z (HS65_LS_IVX27)                              0.03       1.47 f
+  arb/U87/Z (HS65_LS_NOR2X38)                             0.02       1.49 r
+  arb/U88/Z (HS65_LS_NAND2X14)                            0.03       1.53 f
+  arb/U90/Z (HS65_LS_NAND3X38)                            0.03       1.56 r
+  arb/U93/Z (HS65_LS_AOI13X20)                            0.04       1.60 f
+  arb/U266/Z (HS65_LS_NAND2AX14)                          0.03       1.63 r
+  arb/U296/Z (HS65_LS_NAND2X21)                           0.02       1.65 f
+  arb/U102/Z (HS65_LS_AOI31X15)                           0.04       1.69 r
+  arb/U412/Z (HS65_LS_CBI4I1X16)                          0.04       1.73 f
+  arb/U431/Z (HS65_LS_NAND3X25)                           0.04       1.76 r
+  arb/U471/Z (HS65_LS_CNIVX34)                            0.02       1.79 f
+  arb/U375/Z (HS65_LS_NOR2X38)                            0.04       1.83 r
+  arb/U198/Z (HS65_LS_IVX53)                              0.03       1.85 f
+  arb/U432/Z (HS65_LS_NAND2X29)                           0.02       1.87 r
+  arb/U378/Z (HS65_LS_OAI12X24)                           0.02       1.90 f
+  arb/U379/Z (HS65_LS_IVX31)                              0.02       1.92 r
+  arb/U212/Z (HS65_LS_NOR2X50)                            0.02       1.94 f
+  arb/U194/Z (HS65_LS_CNIVX31)                            0.02       1.96 r
+  arb/U433/Z (HS65_LS_AOI21X23)                           0.02       1.98 f
+  arb/U30/Z (HS65_LS_OAI12X24)                            0.04       2.02 r
+  arb/U31/Z (HS65_LS_CNIVX34)                             0.03       2.04 f
+  arb/U33/Z (HS65_LS_CNIVX34)                             0.02       2.06 r
+  arb/U35/Z (HS65_LS_NOR2X38)                             0.02       2.08 f
+  arb/U37/Z (HS65_LS_NOR2X25)                             0.02       2.10 r
+  arb/U267/Z (HS65_LS_IVX27)                              0.02       2.12 f
+  arb/U120/Z (HS65_LS_CBI4I6X18)                          0.05       2.17 r
+  arb/U44/Z (HS65_LS_OAI21X12)                            0.04       2.21 f
+  arb/U55/Z (HS65_LS_OAI12X18)                            0.04       2.25 r
+  arb/U59/Z (HS65_LS_AOI211X35)                           0.03       2.29 f
+  arb/U123/Z (HS65_LS_NAND2X29)                           0.03       2.32 r
+  arb/U128/Z (HS65_LS_NAND2AX14)                          0.04       2.36 f
+  arb/U132/Z (HS65_LS_OAI211X22)                          0.06       2.43 r
+  arb/route_config_unbuf[6] (arbitor)                     0.00       2.43 r
+  U898/Z (HS65_LS_NOR2X25)                                0.03       2.46 f
+  U880/Z (HS65_LS_CNIVX34)                                0.02       2.48 r
+  U724/Z (HS65_LS_IVX53)                                  0.02       2.50 f
+  U881/Z (HS65_LS_NAND2X29)                               0.02       2.51 r
+  U882/Z (HS65_LS_IVX53)                                  0.02       2.54 f
+  U888/Z (HS65_LS_AOI222X4)                               0.08       2.62 r
+  U1420/Z (HS65_LS_OAI211X5)                              0.06       2.68 f
+  cx/control2_out_reg[22]/D (HS65_LS_DFPHQX35)            0.00       2.68 f
+  data arrival time                                                  2.68
+
+  clock clk (rise edge)                                   2.00       2.00
+  clock network delay (ideal)                             0.00       2.00
+  cx/control2_out_reg[22]/CP (HS65_LS_DFPHQX35)           0.00       2.00 r
+  library setup time                                     -0.15       1.85
+  data required time                                                 1.85
+  --------------------------------------------------------------------------
+  data required time                                                 1.85
+  data arrival time                                                 -2.68
+  --------------------------------------------------------------------------
+  slack (VIOLATED)                                                  -0.83
+
+
+1

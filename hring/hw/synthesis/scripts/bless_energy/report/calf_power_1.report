@@ -1,0 +1,43 @@
+Information: Propagating switching activity (low effort zero delay simulation). (PWR-6)
+Warning: There is no defined clock in the design. (PWR-80)
+Warning: Design has unannotated sequential cell outputs. (PWR-415)
+ 
+****************************************
+Report : power
+        -analysis_effort low
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Tue Aug 24 17:55:51 2010
+****************************************
+
+
+Library(s) Used:
+
+    CORE65LPSVT (File: /afs/ece.cmu.edu/project/km_group/cad/pdk/ST_65/techFiles/CORE65LPSVT_nom_1.10V_25C.db)
+
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: top
+
+Design        Wire Load Model            Library
+------------------------------------------------
+brouter                area_0K           CORE65LPSVT
+
+
+Global Operating Voltage = 1.1  
+Power-specific unit information :
+    Voltage Units = 1V
+    Capacitance Units = 1.000000pf
+    Time Units = 1ns
+    Dynamic Power Units = 1mW    (derived from V,C,T units)
+    Leakage Power Units = 1mW
+
+
+  Cell Internal Power  =   7.4153 mW   (98%)
+  Net Switching Power  = 146.5166 uW    (2%)
+                         ---------
+Total Dynamic Power    =   7.5618 mW  (100%)
+
+Cell Leakage Power     =   1.6823 uW
+
+1

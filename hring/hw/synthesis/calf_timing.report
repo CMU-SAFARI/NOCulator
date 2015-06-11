@@ -1,0 +1,74 @@
+ 
+****************************************
+Report : timing
+        -path full
+        -delay max
+        -max_paths 1
+Design : brouter
+Version: Z-2007.03-SP5
+Date   : Wed Aug 25 20:42:35 2010
+****************************************
+
+ # A fanout number of 1000 was used for high fanout net computations.
+
+Operating Conditions: nom_1.10V_25C   Library: CORE65LPSVT
+Wire Load Model Mode: enclosed
+
+  Startpoint: sn/gc/gold_sel_reg[0]
+              (rising edge-triggered flip-flop clocked by clk)
+  Endpoint: port2_c_3_r_reg[0]
+            (rising edge-triggered flip-flop clocked by clk)
+  Path Group: clk
+  Path Type: max
+
+  Des/Clust/Port     Wire Load Model       Library
+  ------------------------------------------------
+  brouter            area_24Kto30K         CORE65LPSVT
+  sortnet            area_5Kto6K           CORE65LPSVT
+
+  Point                                                   Incr       Path
+  --------------------------------------------------------------------------
+  clock clk (rise edge)                                   0.00       0.00
+  clock network delay (ideal)                             0.00       0.00
+  sn/gc/gold_sel_reg[0]/CP (HS65_LS_DFPQX27)              0.00 #     0.00 r
+  sn/gc/gold_sel_reg[0]/Q (HS65_LS_DFPQX27)               0.16       0.16 r
+  sn/U104/Z (HS65_LS_CNIVX27)                             0.05       0.21 f
+  sn/U153/Z (HS65_LS_AOI22X6)                             0.06       0.27 r
+  sn/U202/Z (HS65_LS_OAI212X5)                            0.06       0.33 f
+  sn/U201/Z (HS65_LS_NAND4ABX6)                           0.12       0.45 f
+  sn/U150/Z (HS65_LS_AOI21X6)                             0.05       0.50 r
+  sn/U197/Z (HS65_LS_OAI12X6)                             0.04       0.54 f
+  sn/U196/Z (HS65_LS_CBI4I1X5)                            0.05       0.59 r
+  sn/U195/Z (HS65_LS_MUX21I1X6)                           0.09       0.68 r
+  sn/U147/Z (HS65_LS_IVX27)                               0.05       0.73 f
+  sn/U119/Z (HS65_LS_IVX27)                               0.05       0.78 r
+  sn/U180/Z (HS65_LS_MUXI21X5)                            0.09       0.88 f
+  sn/U3/Z (HS65_LS_AOI22X6)                               0.07       0.95 r
+  sn/U241/Z (HS65_LS_OAI212X5)                            0.07       1.01 f
+  sn/U171/Z (HS65_LS_NAND4ABX6)                           0.12       1.13 f
+  sn/U117/Z (HS65_LS_IVX7)                                0.04       1.17 r
+  sn/U116/Z (HS65_LS_OAI21X3)                             0.04       1.21 f
+  sn/U168/Z (HS65_LS_AOI212X4)                            0.06       1.28 r
+  sn/U166/Z (HS65_LS_NOR2X6)                              0.05       1.33 f
+  sn/U165/Z (HS65_LS_MUX31X35)                            0.12       1.45 r
+  sn/U115/Z (HS65_LS_IVX35)                               0.03       1.48 f
+  sn/U84/Z (HS65_LS_NOR2X5)                               0.10       1.58 r
+  sn/U98/Z (HS65_LS_BFX9)                                 0.18       1.76 r
+  sn/U853/Z (HS65_LS_MX41X4)                              0.16       1.92 r
+  sn/control2_out[0] (sortnet)                            0.00       1.92 r
+  port2_c_3_r_reg[0]/D (HS65_LS_DFPQX9)                   0.00       1.92 r
+  data arrival time                                                  1.92
+
+  clock clk (rise edge)                                   2.00       2.00
+  clock network delay (ideal)                             0.00       2.00
+  port2_c_3_r_reg[0]/CP (HS65_LS_DFPQX9)                  0.00       2.00 r
+  library setup time                                     -0.08       1.92
+  data required time                                                 1.92
+  --------------------------------------------------------------------------
+  data required time                                                 1.92
+  data arrival time                                                 -1.92
+  --------------------------------------------------------------------------
+  slack (MET)                                                        0.00
+
+
+1

@@ -1,0 +1,47 @@
+#! /bin/bash
+
+##### Paths ####
+# Be careful with the paths as most are not absolute
+
+REPOROOT="../"
+RESULTS=$REPOROOT/results
+SYNROOT=$REPOROOT/synthesis
+
+# Setup
+#klog kwoo@ece
+#./setup_bash
+
+# Constant network parameters
+seq=3       # Number of bits in the sequence number
+maddrx=3    # Max X address
+maddry=3    # Max Y address
+
+# Loop over the different parameters. Add to the list in order
+for data in 32 # 64 128
+do
+    for age in 16 #8 16 32 64
+    do
+        echo "Perofrming calculation for age: $age data: $data"
+        
+        # Generate the new defines 
+        cd $REPOROOT/bless_age
+        ./generate_defines.py defines.v $data $age $seq $maddrx $maddry
+
+        # Run the test
+        cd $SYNROOT
+        make bless_age
+        
+        # Add to results file
+        area=`cat bless_age_area.report`
+        timing=`cat bless_age_timing.report`
+        power=`cat bless_age_power.report`
+        
+        # Add the result to the csv file
+        ./export_to_csv "$area" "$power" "$timing" "bless_age" "$data" "$age"
+        
+        # Copy the results into the results folder
+        cp bless_age_area.report $RESULTS/bless_age_area_d"$data"_a"$age".report
+        cp bless_age_timing.report $RESULTS/bless_age_timing_d"$data"_a"$age".report
+        cp bless_age_power.report $RESULTS/bless_age_power_d"$data"_a"$age".report
+    done
+done
