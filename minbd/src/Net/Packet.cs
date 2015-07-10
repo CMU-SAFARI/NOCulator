@@ -52,6 +52,11 @@ namespace ICSimulator
             x = id / Config.network_nrY;
             y = id % Config.network_nrY;
         }
+
+        public int MD(Coord c)
+        {
+            return Math.Abs(c.x - x) + Math.Abs(c.y - y);
+        }
     }
 
     public class RingCoord
@@ -344,6 +349,18 @@ namespace ICSimulator
         public bool  isSilver;
         public bool  wasSilver;
         public int   nrWasSilver;
+
+        //Data required for fault-tolerant Maze-routing
+        public bool enteredTraversalMode;//loacl variable for each router
+        public int hopCnt;
+        public MazeFunctioningHeader mazeIn;//upon entering the router
+        public MazeFunctioningHeader mazeOut;//upon leaving the router, it will be coppied to inF.
+        public bool injectedFromCTRL;//to ignore them in stats
+        public int[] dirOut;
+        public int sel;
+        // Following two are for handling discunnected destinations
+        public bool destIsDisconnected;
+        public Coord discDestCoord;
         
         // Buffer bypass timestamp
         public ulong bufferInTime;
@@ -420,6 +437,23 @@ namespace ICSimulator
             }
         }
 
+        public Coord src
+        {
+            get
+            {
+                switch (state)
+                {
+                    case State.Normal: return packet.src;
+                    case State.Carrier: return packet.src;
+
+                    case State.Rescuer: return rescuerCoord;
+
+                    case State.Placeholder: return new Coord(0);
+                }
+                throw new Exception("Unknown flit state");
+            }
+        }
+
         public ulong distance;
         //private bool[] deflections;
         //private int deflectionsIndex;
@@ -448,6 +482,18 @@ namespace ICSimulator
             this.hops 			   = 0;
             this.missedTurns       = 0;
             this.hardstate         = Flit.HardState.Normal;
+
+            //initializing maze router arguments.
+            this.mazeIn.MDbest = packet.src.MD(packet.dest);
+            this.mazeIn.mode = MazeFlitsMode.normal;
+            this.mazeOut = this.mazeIn;
+            this.enteredTraversalMode = false;
+            this.hopCnt = 0;
+            this.dirOut = new int[2] { Simulator.DIR_NONE, Simulator.DIR_NONE };
+            this.destIsDisconnected = false;
+            this.injectedFromCTRL = false;
+
+
             //deflections = new bool[100];
             //deflectionsIndex = 0;
             if (packet != null)
@@ -489,6 +535,25 @@ namespace ICSimulator
                 return String.Format("Flit {0} of packet {1} (state {2})", flitNr, packet.ID, state);
             else
                 return String.Format("Flit {0} of packet <NONE> (state {1})", flitNr, state);
+        }
+    }
+
+    public enum MazeFlitsMode
+    {
+        normal, rightHand, leftHand, unreachable
+    }
+
+    public struct MazeFunctioningHeader
+    {
+        //Data required for fault-tolerant Face-Routing
+        public int MDbest;//The best MD to destination that packet has reached so far
+        public MazeFlitsMode mode;
+        public Coord nodeTrav;
+        public int dirTrav;
+        public override string ToString()
+        {
+            return String.Format("bestMD:{0}, mode:{1}", MDbest, mode);
+
         }
     }
 }

@@ -92,11 +92,26 @@ namespace ICSimulator
         public static ProcessorConfig proc = new ProcessorConfig();
         public static MemoryConfig memory  = new MemoryConfig();
         public static RouterConfig router  = new RouterConfig();
+        public static Router_Maze.MazeConfig maze = new Router_Maze.MazeConfig();
+
 
         public static bool synthGen = false;
         public static double synthRate = 0.0;
+        public static double synthRateIncStep = 0.0;
+        public static ulong synthRateIncInterval = 0;
         public static int synthQueueLimit = 1000;
         public static SynthTrafficPattern synthPattern = SynthTrafficPattern.UR;
+
+        // ------ Fault Model
+        public enum faultType { link, node}
+        public static int fault_initialCount = 0;
+        public static ulong fault_injectionInterval = 0;
+        public static faultType fault_type = faultType.link;
+        public static int fault_maxCount = 0;
+
+
+        public static string rt_output = "rtResult.txt";
+        public static ulong rt_interval = 1000;
 
         // ---- MICRO'11
 

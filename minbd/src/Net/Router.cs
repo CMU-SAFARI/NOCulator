@@ -18,6 +18,11 @@ namespace ICSimulator
         public Router[] neigh = new Router[6];
         public int neighbors;
 
+        //Fault-tolerance added
+        public int healthyNeighbors;
+        public bool[] canReach;
+        public bool visited;
+
         protected string routerName;
         protected Node m_n;
 
@@ -56,6 +61,8 @@ namespace ICSimulator
             starve_interval = 0;
 
             qlen_win = new int[AVG_QLEN_WIN];
+            canReach = new bool[Config.N];
+            visited = false;
         }
 
         public Router(Coord myCoord)
@@ -72,6 +79,11 @@ namespace ICSimulator
             starve_interval = 0;
 
             qlen_win = new int[AVG_QLEN_WIN];
+			canReach = new bool[Config.N];
+            for (int i = 0; i < Config.N; i++)
+                canReach[i] = true;
+            canReach[ID] = false;
+            visited = false;
         }
 
         public void setNode(Node n)
@@ -92,6 +104,7 @@ namespace ICSimulator
             statsOutput();
         }
 
+        public virtual bool hasLiveLock() { return false; }
         protected abstract void _doStep(); // called from Network
 
         public abstract bool canInjectFlit(Flit f); // called from Processor
@@ -119,7 +132,7 @@ namespace ICSimulator
             return determineDirection(f, new Coord(0, 0));
         }
 
-        protected PreferredDirection determineDirection(Flit f, Coord current)
+        protected virtual PreferredDirection determineDirection(Flit f, Coord current)
         {
             PreferredDirection pd;
             pd.xDir = Simulator.DIR_NONE;
@@ -133,7 +146,7 @@ namespace ICSimulator
             return determineDirection(f.dest);
         }
 
-        protected PreferredDirection determineDirection(Coord c)
+        protected virtual PreferredDirection determineDirection(Coord c)
         {
             PreferredDirection pd;
             pd.xDir = Simulator.DIR_NONE;
@@ -344,7 +357,8 @@ namespace ICSimulator
 
             Simulator.stats.flit_inj_latency.Add(inj_latency);
             Simulator.stats.flit_net_latency.Add(net_latency);
-            Simulator.stats.flit_total_latency.Add(inj_latency);
+            Simulator.stats.flit_total_latency.Add(total_latency);
+            Simulator.stats.total_interval_hopCnt.Add(f.hopCnt);
 
             Simulator.stats.eject_flit.Add();
             Simulator.stats.eject_flit_bydest[f.packet.dest.ID].Add();
@@ -410,6 +424,8 @@ namespace ICSimulator
             ulong net_latency = Simulator.CurrentRound - p.injectionTime;
             ulong total_latency = Simulator.CurrentRound - p.creationTime;
 
+            Simulator.stats.total_interval_latency.Add(total_latency);
+            Simulator.stats.total_after_change_latency.Add(total_latency);
             Simulator.stats.net_latency.Add(net_latency);
             Simulator.stats.total_latency.Add(total_latency);
             Simulator.stats.net_latency_bysrc[p.src.ID].Add(net_latency);

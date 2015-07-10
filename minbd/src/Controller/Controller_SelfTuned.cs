@@ -86,7 +86,7 @@ namespace ICSimulator
                 if (netu < m_target - Config.selftuned_netutil_tolerance)
                     if (m_rate > 0.00) m_rate -= Config.selftuned_rate_delta;
 
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("cycle {0}: netu {1}, target {2}, rate {3}",
                         Simulator.CurrentRound, netu, m_target, m_rate);
 #endif

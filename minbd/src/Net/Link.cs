@@ -23,12 +23,21 @@ namespace ICSimulator
         public Flit In, Out;
         public object SideBandIn, SideBandOut;
 
+        public Coord outCoord;
+        public int dir;
+
+        int rdInd, wrInd;
+        int rdBndInd, wrBndInd;
+
+        public bool healthy;//models the health status of a link. If failed, In flits are not accepted.
+
         /**
          * Constructs a Link. Note that delay specifies _additional_ cycles; that is, if
          * delay == 0, then this.In will appear at this.Out after _one_ doStep() iteration.
          */
         public Link(int delay)
         {
+            healthy = true;
             m_delay = delay;
             if (m_delay > 0)
                 m_fifo = new Flit[m_delay];
@@ -52,6 +61,13 @@ namespace ICSimulator
 		
         public void doStep()
         {
+            //In case the link is failed, the router should have not forwarded a packet to it.
+            if (healthy == false && In != null)
+                throw new Exception("A failed link should not be utilized!");
+            else if (healthy == false)
+                Out = null;
+            else if (In != null && Out != null)
+                throw new Exception("Overriding a non-consumed flit!!!");
             if (m_delay > 0)
             {
                 Out = m_fifo[0];
@@ -69,6 +85,9 @@ namespace ICSimulator
                 Out = In;
                 SideBandOut = SideBandIn;
             }
+
+            if (In != null)
+                In.hopCnt++;
 
             In = null;
             SideBandIn = null;
@@ -102,5 +121,13 @@ namespace ICSimulator
 		{
 			m_delay = delay;
 		}
+
+        public void goFaulty()
+        {
+            healthy = false;
+            Console.WriteLine("{0}:{1} -> failed", outCoord, dir);
+            if(dir < 2)
+            Simulator.newFault += string.Format("{0}<->{1}:failed ", outCoord, Simulator.network.routers[outCoord.ID].neigh[dir].coord);
+        }
     }
 }

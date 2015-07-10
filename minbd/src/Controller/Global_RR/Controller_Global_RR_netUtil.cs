@@ -224,7 +224,7 @@ namespace ICSimulator
                         {
                             total_high++;
                             setThrottleRate(i, true);
-#if DEBUG
+#if DEBUG_
                             Console.Write("#ON#:Node {0} with MPKI {1} ",i,MPKI[i]);
 #endif
                         }
@@ -232,13 +232,13 @@ namespace ICSimulator
                         {
                             throttleTable[i]=0;
                             setThrottleRate(i, false);
-#if DEBUG
+#if DEBUG_
                             Console.Write("@OFF@:Node {0} with MPKI {1} prev_MPKI {2} ",i,MPKI[i],prev_MPKI[i]);
 #endif
                         }
                     }
                     setThrottleTable();
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine(")");
 #endif
                     isThrottling = true;

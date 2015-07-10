@@ -14,7 +14,7 @@ namespace ICSimulator
         // network-level re-injection (e.g., placeholder schemes)
         protected Flit m_injectSlot, m_injectSlot2;
         
-        ResubBuffer rBuf;
+        protected ResubBuffer rBuf;
 
         public Router_New(Coord myCoord)
             : base(myCoord)
@@ -24,7 +24,22 @@ namespace ICSimulator
             rBuf = new ResubBuffer();
         }
 
-        Flit handleGolden(Flit f)
+        public override bool hasLiveLock()
+        {
+            if (m_n.healthy == false)
+                return false;
+            for (int i = 0; i < 4; i++)
+                if (linkIn[i] != null && linkIn[i].Out != null)
+                    if (Simulator.CurrentRound - linkIn[i].Out.injectionTime > Config.livelock_thresh)
+                        return true;
+
+            for (int i = 0; i < rBuf.count(); i++)
+                if (Simulator.CurrentRound - rBuf.getFlit(i).injectionTime > Config.livelock_thresh)
+                    return true;
+            return false;
+        }
+
+        protected Flit handleGolden(Flit f)
         {
             if (f == null)
                 return f;
@@ -66,7 +81,7 @@ namespace ICSimulator
         }
 
         // accept one ejected flit into rxbuf
-        protected void acceptFlit(Flit f)
+        protected virtual void acceptFlit(Flit f)
         {
             statsEjectFlit(f);
             if (f.packet.nrOfArrivedFlits + 1 == f.packet.nrOfFlits)
@@ -75,7 +90,7 @@ namespace ICSimulator
             m_n.receiveFlit(f);
         }
 
-        Flit ejectLocal()
+        protected virtual Flit ejectLocal()
         {
             // eject locally-destined flit (highest-ranked, if multiple)
             Flit ret = null;
@@ -91,7 +106,7 @@ namespace ICSimulator
                 }
 
             if (bestDir != -1) linkIn[bestDir].Out = null;
-#if DEBUG
+#if DEBUG_
             if (ret != null)
                 Console.WriteLine("ejecting flit {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
 #endif
@@ -100,7 +115,7 @@ namespace ICSimulator
             return ret;
         }
 
-        Flit[] input = new Flit[4]; // keep this as a member var so we don't
+        protected Flit[] input = new Flit[4]; // keep this as a member var so we don't
         // have to allocate on every step (why can't
         // we have arrays on the stack like in C?)
 
@@ -205,7 +220,7 @@ namespace ICSimulator
                     else
                         throw new Exception("what???inject null flits??");
                     input[c++] = inj;
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("injecting flit {0}.{1} at node {2} cyc {3}",
                             m_injectSlot.packet.ID, m_injectSlot.flitNr, coord, Simulator.CurrentRound);
 #endif
@@ -670,6 +685,10 @@ namespace ICSimulator
                         silver1 = false;
                         silver2 = false;
                         break;
+                    case "face":
+                        silver1 = f1.mazeIn.mode != MazeFlitsMode.normal;
+                        silver2 = f2.mazeIn.mode != MazeFlitsMode.normal;
+                        break;
                     default:
                         throw new Exception("Silver mode not yet implemented");
                 }
@@ -1103,4 +1122,712 @@ namespace ICSimulator
                 fv(m_injectSlot2);
         }
     }
+
+
+    public class Router_Maze : Router_New_GP
+    {
+        
+        public enum SelectionAlgorithm
+        {
+            always0, always1, random, intuitive
+        }
+
+        public class MazeConfig : ConfigGroup
+        {
+            public SelectionAlgorithm selection = SelectionAlgorithm.random;
+            public int feedbackQsize = 10;
+            public override void finalize() { }
+            protected override bool setSpecialParameter(string param, string val) { return false; }
+        }
+
+       
+
+        MazeConfig configs = Config.maze;
+
+        public Router_Maze(Coord myCoord)
+            : base(myCoord)
+        {
+        }
+
+        static void Swap<T>(ref T lhs, ref T rhs)
+        {
+            T temp;
+            temp = lhs;
+            lhs = rhs;
+            rhs = temp;
+        }
+
+        static void BubbleSwap<T>(ref T[] lhs, int ind)
+        {
+            for (; ind < lhs.Length - 1; ind++)
+                Swap(ref lhs[ind], ref lhs[ind + 1]);
+        }
+
+        
+        protected override Flit ejectLocal()
+        {
+            // eject locally-destined flit (highest-ranked, if multiple)
+            Flit ret = null;
+            int bestDir = -1;
+            for (int dir = 0; dir < 4; dir++)
+                if (input[dir] != null &&
+                    input[dir].state != Flit.State.Placeholder &&
+                    (input[dir].dest.ID == ID || input[dir].mazeIn.mode == MazeFlitsMode.unreachable) &&
+                    (ret == null || (ret.mazeIn.mode != MazeFlitsMode.unreachable && rank(input[dir], ret) < 0)))
+                {
+                    ret = input[dir];
+                    bestDir = dir;
+                }
+
+            if (bestDir != -1)
+            {
+                input[bestDir] = null;
+                //BubbleSwap(ref input, bestDir);
+            }
+
+#if DEBUG_
+            if (ret != null)
+                Console.WriteLine("ejecting flit {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
+#endif
+            ret = handleGolden(ret);
+
+            return ret;
+        }
+
+        Flit creatNewFlit(Coord src, Coord dst)
+        {
+
+            SynthPacket p = new SynthPacket(src, dst);
+            return p.flits[0];
+        }
+
+        
+        struct src_dst
+        {
+            public int srcID, dstID;
+            public src_dst(int src_id, int dst_id)
+            {
+                srcID = src_id;
+                dstID = dst_id;
+            }
+        };
+        List<src_dst> partitioningInfo;
+        // accept one ejected flit into rxbuf
+        protected override void acceptFlit(Flit f)
+        {
+
+            if (f.destIsDisconnected)
+                canReach[f.discDestCoord.ID] = false;
+
+            if (f.mazeIn.mode == MazeFlitsMode.unreachable)
+            {
+                int srcID = f.src.ID, dstID = f.dest.ID;
+                canReach[dstID] = false;
+                if (partitioningInfo.Contains(new src_dst(srcID, dstID)) == false &&
+                    feedBackQ.Count < configs.feedbackQsize)
+                {
+                    Flit nF = creatNewFlit(coord, f.src);
+
+                    nF.destIsDisconnected = true;
+                    nF.discDestCoord = f.dest;
+                    feedBackQ.Enqueue(nF);
+                    partitioningInfo.Add(new src_dst(srcID, dstID));
+                }
+            }
+            
+
+            if (f.injectedFromCTRL == false)
+                base.acceptFlit(f);
+        }
+
+        
+        Queue<Flit> feedBackQ;
+        protected void learningController()
+        {
+            if (m_injectSlot == null && feedBackQ.Count != 0)//in case a dest in unreachable
+            {
+                Flit f = feedBackQ.Dequeue();
+                f.injectedFromCTRL = true;
+                InjectFlit(f);
+            }
+            return;
+
+
+        }
+
+        int calcRegion(Coord src, Coord dest)
+        {
+            return (dest.x > src.x && dest.y >= src.y) ? 0 :
+                         (dest.x <= src.x && dest.y > src.y) ? 1 :
+                         (dest.x < src.x && dest.y <= src.y) ? 2 : 3;
+        }
+
+        Flit[] permut = new Flit[4];
+
+        protected override void _doStep()
+        {
+            if (m_n.healthy == false)
+                return;
+
+            //calls the learning controller
+            learningController();
+
+            // grab inputs into a local array so we can sort
+            for (int i = 0; i < 4; i++) input[i] = null;
+            int c = 0, before = 0;
+            for (int dir = 0; dir < 4; dir++)
+                if (linkIn[dir] != null && linkIn[dir].Out != null)
+                {
+                    input[dir] = linkIn[dir].Out;
+                    input[dir].inDir = dir;
+                    linkIn[dir].Out = null;
+                    c++;
+                }
+            before = c;
+
+            //eject-1 stages
+            Flit[] eject = new Flit[4];
+            eject[0] = eject[1] = eject[2] = eject[3] = null;
+
+            int ejctCnt = 0;
+            for (; ejctCnt < Config.ejectCount - 1; ejctCnt++)
+            {
+                eject[ejctCnt] = ejectLocal();
+                if (eject[ejctCnt] == null)
+                    break;
+            }
+
+            //buffer inject stage
+            int reinjectedCount = 0;
+            if (Config.resubmitBuffer)
+            {
+                c = before - ejctCnt;
+                for (int dir = 0; !rBuf.isEmpty() && dir < 4 && c < healthyNeighbors && reinjectedCount < Config.rebufInjectCount; dir++)
+                    if (input[dir] == null)
+                    {
+                        input[dir] = rBuf.removeFlit();
+                        input[dir].nrInRebuf++;
+                        c++;
+                        reinjectedCount++;
+                    }
+            }
+            
+
+            //last eject stage (As there might be a local packet re-injected)
+            eject[ejctCnt] = ejectLocal();
+            if (eject[ejctCnt] != null)
+                ejctCnt++;
+
+            #region general checkups
+            //Some general checkups
+            int after = 0;
+            for (int i = 0; i < 4; i++)
+                if (input[i] != null) after++;
+            if (after + ejctCnt != before + reinjectedCount)
+                throw new Exception("Something weird happened on resubmit buffer");
+
+            for (int i = 0; i < 4; i++)
+                for (int j = 0; j < 4; j++)
+                {
+                    if (input[i] == null || input[j] == null)
+                        continue;
+                    if (i != j && input[i].Equals(input[j]))
+                        throw new Exception("DUPLICATING");
+                }
+
+            // sometimes network-meddling such as flit-injection can put unexpected
+            // things in outlinks...
+            int outCount = 0;
+            for (int dir = 0; dir < 4; dir++)
+                if (linkOut[dir] != null && linkOut[dir].In != null)// || !linkOut[dir].healthy))
+                    throw new Exception("Some previous flits are not yet forwarded!!");
+            //outCount++;
+            #endregion
+
+            //inject stage
+            bool wantToInject = m_injectSlot2 != null || m_injectSlot != null;
+            bool canInject = (c + outCount) < healthyNeighbors;
+            bool starved = wantToInject && !canInject;
+
+            if (starved)
+            {
+                Flit starvedFlit = null;
+                starvedFlit = m_injectSlot2;
+                if (starvedFlit == null) starvedFlit = m_injectSlot;
+
+                Simulator.controller.reportStarve(coord.ID);
+                statsStarve(starvedFlit);
+            }
+            if (canInject && wantToInject)
+            {
+                //Flit inj_peek = null;
+                //if (m_injectSlot2 != null)
+                //    inj_peek = m_injectSlot2;
+                //else if (m_injectSlot != null)
+                //    inj_peek = m_injectSlot;
+                if (m_injectSlot2 == null && m_injectSlot == null)
+                    throw new Exception("Inj flit peek is null!!");
+
+                if (!Simulator.controller.ThrottleAtRouter || Simulator.controller.tryInject(coord.ID))
+                {
+                    Flit inj = null;
+                    if (m_injectSlot2 != null)
+                    {
+                        inj = m_injectSlot2;
+                        m_injectSlot2 = null;
+                    }
+                    else
+                    {
+                        inj = m_injectSlot;
+                        m_injectSlot = null;
+                    }
+
+                    if (c >= healthyNeighbors)
+                        throw new Exception("Injecting flits without having ports");
+
+                    for (int dir = 0; dir < 4; dir++ )
+                        if (input[dir] == null)
+                        {
+                            input[dir] = inj;
+                            inj.inDir = Simulator.DIR_LOCAL;
+                            c++;
+                            break;
+                        }
+
+#if DEBUG_
+                    Console.WriteLine("injecting flit {0}.{1} at node {2} cyc {3}",
+                            m_injectSlot.packet.ID, m_injectSlot.flitNr, coord, Simulator.CurrentRound);
+#endif
+#if memD
+                    int r=inj.packet.requesterID;
+                    if(r==coord.ID)
+                        Console.WriteLine("inject flit at node {0}<>request:{1}",coord.ID,r);
+                    else
+                        Console.WriteLine("Diff***inject flit at node {0}<>request:{1}",coord.ID,r);
+#endif
+                    if (inj.injectedFromCTRL)
+                        inj.injectionTime = Simulator.CurrentRound;
+                    else
+                        statsInjectFlit(inj);
+                }
+            }
+
+            //finalizing eject stage
+            for (int i = 0; i < ejctCnt; i++)
+                //if (eject[i] != null)
+                {
+                    acceptFlit(eject[i]);
+                    eject[i] = null;
+                }
+            if (c == 2 && ((input[0] == null) == (input[1] == null)))
+                Swap(ref input[1], ref input[2]);
+
+
+            /********************************************************************************/
+            ////////////////////////////// SECOND PIPLELINE STAGE ////////////////////////////
+            /********************************************************************************/
+
+            //Maze-routing Stage
+            for (int i = 0; i < 4; i++)
+                if (input[i] != null)
+                    determineDirection(input[i], coord);
+
+
+            //Selection Stage
+            for (int i = 0; i < 4; i++)
+                if (input[i] != null)
+                    selectionFunction(ref input[i]);
+
+
+            //Permutation Network
+            int numDeflected = permutation_network();
+
+            
+            //Buffer Eject
+            int bufEjctCnt = 0;
+            if (Config.resubmitBuffer && numDeflected > 0)
+            {
+                for (int i = 0; i < Config.rebufRemovalCount && i < numDeflected && !rBuf.isFull(); i++)
+                {
+                    int ind = -1;
+                    for (int dir = 0; dir < 4; dir++)
+                        if (input[dir] != null && input[dir].Deflected)
+                        {
+                            if (ind == -1 || linkOut[dir] == null || linkOut[dir].healthy == false ||
+                                (linkOut[ind] != null && linkOut[ind].healthy && input[ind].mazeIn.MDbest != 0 &&
+                                (input[dir].mazeIn.MDbest == 0 || deflPriority(input[dir], input[ind]) < 0)))
+                                ind = dir;
+                        }
+                    if (ind == -1 || input[ind] == null)
+                        throw new Exception("Null flit to inject to side buffer!!!");
+
+                    rBuf.addFlit(input[ind]);
+                    input[ind].hopCnt++;
+                    input[ind] = null;
+                    bufEjctCnt++;
+                }
+            }
+
+
+            //Deflection Stage
+            for (int dir = 0; dir < 4; dir++ )
+                if (input[dir] != null)
+                {
+                    if (linkOut[dir].healthy == false)
+                        throw new Exception("Forwarding a flit to a failed link!!!");
+                    else if(linkOut[dir].In != null)
+                        throw new Exception("Previous flit is not consumed yet!!!");
+
+                    if (input[dir].Deflected)
+                    {
+                        resetMazeHeads(ref input[dir], dir);
+                        if (input[dir] == null)
+                            continue;
+                    }
+                    else
+                    {
+                        int sel = (input[dir].dirOut[0] == dir) ? 0 : 1;
+
+                        if (input[dir].enteredTraversalMode)
+                        {
+                            input[dir].mazeOut.mode = (sel == 0) ?
+                                MazeFlitsMode.rightHand : MazeFlitsMode.leftHand;
+                            input[dir].mazeOut.dirTrav = dir;
+                        }
+                    }
+                    
+                    input[dir].mazeIn = input[dir].mazeOut;
+                    linkOut[dir].In = input[dir];
+                    input[dir] = null;
+                }
+        }
+
+        public int permutation_network()
+        {
+            //level 1:
+            //N & E inputs
+            if ((input[0] == null && input[1] == null) ||
+                (input[1] == null && input[0].dirOut[0] == Simulator.DIR_NONE) ||
+                (input[0] == null && input[1].dirOut[0] == Simulator.DIR_NONE) ||
+                (input[0] != null && input[1] != null &&
+                 input[0].dirOut[0] == Simulator.DIR_NONE && input[1].dirOut[0] == Simulator.DIR_NONE))
+            {
+                permut[0] = input[0];
+                permut[2] = input[1];
+            }
+            else
+            {
+                int winner = (input[1] == null) ? 0 :
+                             (input[0] == null) ? 1 :
+                             (input[1].dirOut[0] == Simulator.DIR_NONE) ? 0 :
+                             (input[0].dirOut[0] == Simulator.DIR_NONE) ? 1 :
+                             (rank(input[0], input[1]) < 0) ? 0 : 1;
+
+                int ind = (input[winner].dirOut[input[winner].sel] < 2) ? 0 : 2;
+                permut[ind] = input[winner];
+                permut[2 - ind] = input[1 - winner];
+            }
+            //S & W inputs
+            if ((input[2] == null && input[3] == null) ||
+                (input[3] == null && input[2].dirOut[0] == Simulator.DIR_NONE) ||
+                (input[2] == null && input[3].dirOut[0] == Simulator.DIR_NONE) ||
+                (input[2] != null && input[3] != null &&
+                 input[2].dirOut[0] == Simulator.DIR_NONE && input[3].dirOut[0] == Simulator.DIR_NONE))
+            {
+                permut[1] = input[2];
+                permut[3] = input[3];
+            }
+            else
+            {
+                int winner = (input[3] == null) ? 2 :
+                             (input[2] == null) ? 3 :
+                             (input[3].dirOut[0] == Simulator.DIR_NONE) ? 2 :
+                             (input[2].dirOut[0] == Simulator.DIR_NONE) ? 3 :
+                             (rank(input[2], input[3]) < 0) ? 2 : 3;
+
+                int ind = (input[winner].dirOut[input[winner].sel] < 2) ? 1 : 3;
+                permut[ind] = input[winner];
+                permut[4 - ind] = input[5 - winner];
+            }
+
+
+            //level 2:
+            //N & E permutes
+            if ((permut[0] == null && permut[1] == null) ||
+                (permut[1] == null && permut[0].dirOut[0] == Simulator.DIR_NONE) ||
+                (permut[0] == null && permut[1].dirOut[0] == Simulator.DIR_NONE) ||
+                (permut[0] != null && permut[1] != null &&
+                 permut[0].dirOut[0] == Simulator.DIR_NONE && permut[1].dirOut[0] == Simulator.DIR_NONE))
+            {
+                input[0] = permut[0];
+                input[1] = permut[1];
+            }
+            else
+            {
+                int winner = (permut[1] == null) ? 0 :
+                             (permut[0] == null) ? 1 :
+                             (permut[1].dirOut[0] == Simulator.DIR_NONE) ? 0 :
+                             (permut[0].dirOut[0] == Simulator.DIR_NONE) ? 1 :
+                             (rank(permut[0], permut[1]) < 0) ? 0 : 1;
+
+                int ind = (permut[winner].dirOut[permut[winner].sel] == 0) ? 0 :
+                          (permut[winner].dirOut[permut[winner].sel] == 1) ? 1 :
+                          (permut[winner].dirOut[1 - permut[winner].sel] == 0) ? 0 :
+                          (permut[winner].dirOut[1 - permut[winner].sel] == 1) ? 1 :
+                          (permut[1-winner] != null && permut[1 - winner].dirOut[permut[1 - winner].sel] == 0) ? 1 :
+                          (permut[1-winner] != null && permut[1 - winner].dirOut[permut[1 - winner].sel] == 1) ? 0 :
+                          (permut[1-winner] != null && permut[1 - winner].dirOut[1 - permut[1 - winner].sel] == 0) ? 1 :
+                          (permut[1-winner] != null && permut[1 - winner].dirOut[1 - permut[1 - winner].sel] == 1) ? 0 : winner;
+
+                input[ind] = permut[winner];
+                input[1 - ind] = permut[1 - winner];
+            }
+            //S & W permutes
+            if ((permut[2] == null && permut[3] == null) ||
+                (permut[3] == null && permut[2].dirOut[0] == Simulator.DIR_NONE) ||
+                (permut[2] == null && permut[3].dirOut[0] == Simulator.DIR_NONE) ||
+                (permut[2] != null && permut[3] != null &&
+                 permut[2].dirOut[0] == Simulator.DIR_NONE && permut[3].dirOut[0] == Simulator.DIR_NONE))
+            {
+                input[2] = permut[2];
+                input[3] = permut[3];
+            }
+            else
+            {
+                int winner = (permut[3] == null) ? 2 :
+                             (permut[2] == null) ? 3 :
+                             (permut[3].dirOut[0] == Simulator.DIR_NONE) ? 2 :
+                             (permut[2].dirOut[0] == Simulator.DIR_NONE) ? 3 :
+                             (rank(permut[2], permut[3]) < 0) ? 2 : 3;
+
+                int ind = (permut[winner].dirOut[permut[winner].sel] == 2) ? 2 :
+                          (permut[winner].dirOut[permut[winner].sel] == 3) ? 3 :
+                          (permut[winner].dirOut[1 - permut[winner].sel] == 2) ? 2 :
+                          (permut[winner].dirOut[1 - permut[winner].sel] == 3) ? 3 :
+                          (permut[5-winner] != null && permut[5 - winner].dirOut[permut[5 - winner].sel] == 2) ? 3 :
+                          (permut[5-winner] != null && permut[5 - winner].dirOut[permut[5 - winner].sel] == 3) ? 2 :
+                          (permut[5-winner] != null && permut[5 - winner].dirOut[1 - permut[5 - winner].sel] == 2) ? 3 :
+                          (permut[5-winner] != null && permut[5 - winner].dirOut[1 - permut[5 - winner].sel] == 3) ? 2 : winner;
+
+                input[ind] = permut[winner];
+                input[5 - ind] = permut[5 - winner];
+            }
+
+            //finalizing
+            int numDeflected = 0;
+            for (int dir = 0; dir < 4; dir++)
+            {
+                permut[dir] = null;
+                if (input[dir] != null &&
+                    input[dir].dirOut[0] != dir && input[dir].dirOut[1] != dir)
+                {
+                    numDeflected++;
+                    input[dir].Deflected = true;
+                    if (input[dir].mazeOut.mode == MazeFlitsMode.unreachable)
+                        input[dir].mazeIn = input[dir].mazeOut;
+                }
+            }
+            return numDeflected;
+        }
+
+        public override int rank(Flit f1, Flit f2)
+        {
+            return base.rank(f1, f2);
+        }
+
+
+        public void sortDeflected(ref int[] deflected)
+        {
+
+            for (int i = 0; i < 4; i++)
+                for (int j = i + 1; j < 4; j++)
+                {
+                    int ii = deflected[i];
+                    int jj = deflected[j];
+                    if (jj != -1)
+                        if (ii == -1 || (input[ii].mazeIn.MDbest != 0 &&
+                            (input[jj].mazeIn.MDbest == 0 || deflPriority(input[jj], input[ii]) < 0)))
+                            Swap(ref deflected[i], ref deflected[j]);
+                }
+        }
+
+        public void resetMazeHeads(ref Flit f, int dir)
+        {
+            if (f.mazeOut.mode == MazeFlitsMode.unreachable)
+                return;
+            Coord nc = this.neighbor(dir).coord;
+            f.mazeIn.MDbest = nc.MD(f.dest);
+            f.mazeIn.mode = MazeFlitsMode.normal;
+            f.mazeOut = f.mazeIn;
+        }
+
+        protected override PreferredDirection determineDirection(Flit f, Coord current)
+        {
+            PreferredDirection pd;
+            pd.xDir = Simulator.DIR_NONE;
+            pd.yDir = Simulator.DIR_NONE;
+            pd.zDir = Simulator.DIR_NONE;
+            f.dirOut[0] = f.dirOut[1] = Simulator.DIR_NONE;
+
+            if (f.state == Flit.State.Placeholder) return pd;
+
+            //if (f.packet.ID == 238)
+            //    Console.WriteLine("packet 238 at ID ({0},{1}), wants ({2},{3})", current.x, current.y, f.packet.dest.x, f.packet.dest.y);
+
+            return determineDirection(f);
+        }
+
+        protected override PreferredDirection determineDirection(Flit f)
+        {
+            PreferredDirection pd;
+            pd.xDir = Simulator.DIR_NONE;
+            pd.yDir = Simulator.DIR_NONE;
+            pd.zDir = Simulator.DIR_NONE;
+            f.enteredTraversalMode = false;
+
+            //if (f.packet.ID == 5186926)
+            //    f.outF.bestMD = f.inF.bestMD;
+
+            if (coord.Equals(f.dest) || f.mazeIn.mode == MazeFlitsMode.unreachable)
+            {
+                f.mazeOut = f.mazeIn;
+                return pd;
+            }
+
+
+            int[] odirs = f.dirOut;//new int[2] { Simulator.DIR_NONE, Simulator.DIR_NONE };
+
+            int dX = Math.Abs(f.dest.x - coord.x);
+            int dY = Math.Abs(f.dest.y - coord.y);
+
+            bool[] isProductive = new bool[4] { (f.dest.y > this.coord.y) && linkOut[0].healthy,
+                                                (f.dest.x > this.coord.x) && linkOut[1].healthy,
+                                                (f.dest.y < this.coord.y) && linkOut[2].healthy,
+                                                (f.dest.x < this.coord.x) && linkOut[3].healthy };
+
+            bool hasProductive = isProductive[0] || isProductive[1] || isProductive[2] || isProductive[3];
+            //bool[] vTurns = valid_turns(p.VC, entrancePoint);
+
+            int region = calcRegion(coord, f.dest);
+
+            f.mazeOut = f.mazeIn;
+            if (f.mazeIn.MDbest == coord.MD(f.dest) && hasProductive)
+            {
+
+                int[] idxs = new int[] { 0, 3, 2, 1 };
+                int i = idxs[region], idx = 0;
+                if (isProductive[i]) odirs[idx++] = i;
+                i = (i + 1) % 4;
+                if (isProductive[i]) odirs[idx++] = i;
+
+                f.mazeOut.MDbest = f.mazeIn.MDbest - 1;
+                f.mazeOut.mode = MazeFlitsMode.normal;
+            }
+            else if (f.mazeIn.mode == MazeFlitsMode.rightHand ||
+                     f.mazeIn.mode == MazeFlitsMode.leftHand)
+            {
+
+                int dir = ((f.mazeIn.mode == MazeFlitsMode.rightHand) ? f.inDir + 3 : f.inDir + 1) % 4;
+                for (int i = 0; i < 4; i++)
+                {
+                    if (linkOut[dir] != null && linkOut[dir].healthy)
+                    {
+                        //If the path does not exist!
+                        if (f.mazeIn.dirTrav == dir && f.mazeIn.nodeTrav.Equals(coord))
+                            f.mazeOut.mode = MazeFlitsMode.unreachable;
+                        else
+                            odirs[0] = dir;
+                        break;
+                    }
+
+                    if (f.mazeIn.mode == MazeFlitsMode.rightHand) dir = (dir + 3) % 4;
+                    else dir = (dir + 1) % 4;
+                }
+            }
+            else
+            {
+                int[] rightOrder = new int[] { 1 };
+                int[] leftOrder = new int[] { 1 };
+                switch (region)
+                {
+                    case 0:
+                        rightOrder = new int[] { 0, 3, 2, 1 };
+                        leftOrder = new int[] { 1, 2, 3, 0 };
+                        break;
+                    case 1:
+                        rightOrder = new int[] { 3, 2, 1, 0 };
+                        leftOrder = new int[] { 0, 1, 2, 3 };
+                        break;
+                    case 2:
+                        rightOrder = new int[] { 2, 1, 0, 3 };
+                        leftOrder = new int[] { 3, 0, 1, 2 };
+                        break;
+                    default:
+                        rightOrder = new int[] { 1, 0, 3, 2 };
+                        leftOrder = new int[] { 2, 3, 0, 1 };
+                        break;
+                }
+
+                for (int i = 0; i < 4; i++)
+                    if (this.linkOut[rightOrder[i]] != null && this.linkOut[rightOrder[i]].healthy)
+                    {
+                        odirs[0] = rightOrder[i];
+                        break;
+                    }
+
+                for (int i = 0; i < 4; i++)
+                    if (this.linkOut[leftOrder[i]] != null && this.linkOut[leftOrder[i]].healthy)
+                    {
+                        odirs[1] = leftOrder[i];
+                        break;
+                    }
+                f.mazeOut.nodeTrav = coord;
+                f.enteredTraversalMode = true;
+            }
+
+            pd.xDir = odirs[0];
+            pd.yDir = odirs[1];
+
+            return pd;
+        }
+
+        Rand selRand = new Rand(1024);
+
+        protected void selectionFunction(ref Flit f)
+        {
+            int region = calcRegion(coord, f.dest);
+
+            if (f.dirOut[0] == Simulator.DIR_NONE || f.dirOut[1] == Simulator.DIR_NONE)
+            {
+                f.sel = 0;
+                return;
+            }
+
+            f.sel = selRand.Next(2);
+            switch (configs.selection)
+            {
+                case SelectionAlgorithm.random:
+                    break;
+                case SelectionAlgorithm.always0:
+                    f.sel = 0;
+                    break;
+                case SelectionAlgorithm.always1:
+                    f.sel = 1;
+                    break;
+                case SelectionAlgorithm.intuitive:
+                    if (((region == 0 || region == 3) && (coord.y > coord.x && coord.y + coord.x >= Config.network_nrX - 1)) ||
+                    ((region == 3 || region == 2) && (coord.y <= coord.x && coord.y + coord.x > Config.network_nrX - 1)) ||
+                    ((region == 2 || region == 1) && (coord.y < coord.x && coord.x + coord.y <= Config.network_nrX - 1)) ||
+                    ((region == 1 || region == 0) && (coord.y >= coord.x && coord.x + coord.y < Config.network_nrX - 1)))
+                    {
+                        f.sel = 1;
+                    }
+                    else f.sel = 0;
+                    break;
+                default:
+                    throw new Exception("Unknown selection function!");
+            }
+        }
+    }
+
 }

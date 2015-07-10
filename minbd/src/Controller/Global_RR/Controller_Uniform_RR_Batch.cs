@@ -245,12 +245,12 @@ namespace ICSimulator
                     total_mpki+=MPKI[i];
                     cluster_pool.addNewNode(i,MPKI[i]);
                     total_high++;
-#if DEBUG
+#if DEBUG_
                     Console.Write("#ON#:Node {0} with MPKI {1} ",i,MPKI[i]);
 #endif
                 }
                 Simulator.stats.total_sum_mpki.Add(total_mpki);
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine(")");
 #endif
                 //if no node needs to be throttled, set throttling to false

@@ -130,7 +130,7 @@ namespace ICSimulator
                     break;
                 }
 
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("throttle: cycle {0} congested {1}\n---",
                    Simulator.CurrentRound, congested ? 1 : 0);
 
@@ -141,7 +141,7 @@ namespace ICSimulator
                 if (congested && avg_qlen[i].average() > avg)
                 {
                     setThrottleRate(i, Math.Min(Config.throt_max, Config.throt_min+Config.throt_scale * avg_qlen[i].average()));
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("node {0} qlen {1} rate {2}", i,
                            avg_qlen[i].average(),
                            Math.Min(Config.throt_max, Config.throt_min+Config.throt_scale * avg_qlen[i].average()));
@@ -150,11 +150,11 @@ namespace ICSimulator
                 else
                 {
                     setThrottleRate(i, 0.0);
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("node {0} qlen {1} rate 0.0", i, avg_qlen[i].average());
 #endif
                 }
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("---\n");
 #endif
         }

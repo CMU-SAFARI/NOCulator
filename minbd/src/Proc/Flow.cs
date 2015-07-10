@@ -24,7 +24,7 @@ namespace ICSimulator
             {
                 Simulator.stats.flow_close.Add();
                 m_slots++;
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("FLOW {0}: flow close on {1} (now {2} slots free)", m_n.coord, p, m_slots);
 #endif
                 checkQueue();
@@ -33,12 +33,12 @@ namespace ICSimulator
             else if (p.flow_open)
             {
                 Simulator.stats.flow_open.Add();
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("FLOW {0}: flow open on {1}", m_n.coord, p);
 #endif
                 if (m_slots > 0)
                 {
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("FLOW {0}: granted", m_n.coord);
 #endif
                     m_slots--;
@@ -49,7 +49,7 @@ namespace ICSimulator
                     Simulator.stats.flow_retx.Add();
 
                     m_retx.Enqueue(p);
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("FLOW {0}: queued: now {1} entries on queue", m_n.coord, m_retx.Count);
 #endif
                     return null;
@@ -57,7 +57,7 @@ namespace ICSimulator
             }
             else
             {
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("FLOW {0}: passthrough {1}", m_n.coord, p);
 #endif
                 return p;
@@ -70,7 +70,7 @@ namespace ICSimulator
             {
                 Packet p = m_retx.Dequeue();
                 p.flow_open = false; // implicitly gets the alloc'd slot now
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("FLOW {0}: sending packet {1} for retx", m_n.coord, p);
 #endif
                 m_n.sendRetx(p);

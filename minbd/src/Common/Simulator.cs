@@ -22,11 +22,15 @@ namespace ICSimulator
         public const int DIR_RIGHT = 1;
         public const int DIR_DOWN = 2;
         public const int DIR_LEFT = 3;
+        public const int DIR_LOCAL = 4;
         public const int DIR_BLOCKED = -1;
         public const int DIR_NONE = -99;
 
         public const int DIR_CW  = 4;
         public const int DIR_CCW = 5;
+
+        public static string[] DEF_args = new string[] {"-config", "..\\..\\..\\config.txt",
+                                                        "-workload", "..\\..\\..\\workload_synth", "1"};
 
         // simulator state
         public static ulong CurrentRound = 0;
@@ -34,6 +38,8 @@ namespace ICSimulator
 
         public static ulong CurrentBarrier = 0; // MT workloads
 
+
+        public static StreamWriter rtStWriter;
         // ready callback and deferred-callback queue
         public delegate void Ready();
 
@@ -43,6 +49,7 @@ namespace ICSimulator
         {
             System.Diagnostics.Process.Start("hostname");
             Thread.CurrentThread.Priority = ThreadPriority.BelowNormal;
+            Console.Write( Directory.GetCurrentDirectory());
 
             Init(args);
 
@@ -55,6 +62,8 @@ namespace ICSimulator
         {
             Config config = new Config();
 
+            if (args.Length == 0)
+                args = DEF_args;
 
             config.read(args);
 
@@ -79,7 +88,7 @@ namespace ICSimulator
                 Console.WriteLine("STOPPED DUE TO LIVELOCK.");
 
             Simulator.stats.Finish();
-            using (TextWriter tw = new StreamWriter(Config.output))
+            using (TextWriter tw = new StreamWriter(Config.output, true))
             {
                 Simulator.stats.DumpJSON(tw);
                 //Simulator.stats.Report(tw);
@@ -92,19 +101,66 @@ namespace ICSimulator
 
             Simulator.network.close();
         }
+        public static string newFault = "";
+        public static void rtReport(bool initReport = false)
+        {
+            if (initReport)
+            {
+                rtStWriter.WriteLine("\nRouting algorithm: {0}", Config.router.algorithm);
+                rtStWriter.WriteLine("Selection function: {0}", Config.maze.selection);
+                rtStWriter.WriteLine("Mesh size: ({0},{1})", Config.network_nrX, Config.network_nrY);
+                rtStWriter.WriteLine("Synthetic traffic: {0}, rate: {1} ", Config.synthGen, Config.synthRate);
+                rtStWriter.WriteLine("Synthetic traffic increase step: {0}, interval: {1} ", Config.synthRateIncStep, Config.synthRateIncInterval);
+                rtStWriter.WriteLine("Initial # of faults: {0}, New fault interval: {1}", Config.fault_initialCount, Config.fault_injectionInterval);
+                if (newFault != "")
+                    rtStWriter.WriteLine(newFault);
+                rtStWriter.WriteLine(
+                    "Cycle\t" +
+                    "Inj. Rate\t"+
+                    "tot. # of injected flits\t" +
+                    "tot. # of arrived flits\t" +
+                    "av. overall lat.\t" +
+                    "av. after change lat.\t"+
+                    "avg. interval lat.\t" +
+                    "avg. interval hopCnt.\t" +
+                    "new fault?\t" +
+                    "time stamp");
+            }
+            rtStWriter.WriteLine("{0}\t{1:0.###}\t{2:#.###}\t{3:#.###}\t{4:#.###}\t{5:#.###}\t{6:#.###}\t{7:#.###}\t{8}\t{9}",
+                CurrentRound,
+                Config.synthRate,
+                Simulator.stats.inject_flit.Count,
+                Simulator.stats.eject_flit.Count,
+                Simulator.stats.total_latency.Avg,
+                Simulator.stats.total_after_change_latency.Avg,
+                Simulator.stats.total_interval_latency.Avg,
+                Simulator.stats.total_interval_hopCnt.Avg,
+                newFault,
+                DateTime.Now);
+
+            Simulator.stats.total_interval_latency.Reset();
+            Simulator.stats.total_interval_hopCnt.Reset();
+            newFault = "";
+            
+        }
 
         public static void RunSimulationRun()
         {
            if (File.Exists(Config.output))
             {
                 Console.WriteLine("Output file {0} exists; exiting.", Config.output);
-                Environment.Exit(0);
+                //Environment.Exit(0);
             }
+            
+            rtStWriter = new StreamWriter(Config.rt_output, true);
+            rtReport(true);
 
             if (Config.RouterEvaluation)
                 RouterEval.evaluate();
             else
                 RunSimulation();
+            rtStWriter.WriteLine("---------------------------------------------\n\n");
+            rtStWriter.Close();
 
             Console.WriteLine("simulation finished");
         }
@@ -129,9 +185,35 @@ namespace ICSimulator
             if (!Warming)
                 Simulator.stats.cycle.Add();
 
+            if (CurrentRound % Config.rt_interval == 0)
+            {
+                rtReport();
+            }
+			
             if (CurrentRound % 100000 == 0)
+			{
                 ProgressUpdate();
+                if (network.LiveLockedRouters())
+                    Console.WriteLine("A livelock exists!!");
 
+                if (Config.fault_injectionInterval > 0 && Warming == false &&
+                    CurrentRound % (ulong)Config.fault_injectionInterval == 0)
+                {
+                    rtStWriter.Flush();
+                    if (Config.fault_maxCount == 0 || network.faultCount < Config.fault_maxCount)
+                    {
+                        network.injectNewFault();
+                        stats.total_after_change_latency.Reset();
+                    }
+                }
+                if (Config.synthRateIncStep > 0.0 && Warming == false)
+                    if (CurrentRound % (ulong)Config.synthRateIncInterval == 0)
+                    {
+                        Config.synthRate += Config.synthRateIncStep;
+                        stats.total_after_change_latency.Reset();
+                        rtStWriter.Flush();
+                    }
+			}
             CurrentRound++;
 
             network.doStep();

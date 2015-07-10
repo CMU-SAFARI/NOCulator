@@ -63,21 +63,21 @@ namespace ICSimulator
 
         public Promise getPromise()
         {
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("allocing promise, count was {0}", promises.Count);
 #endif
             if (promises.Count > 0)
             {
                 Promise ret = promises.Dequeue();
                 ret.active = true;
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("promise {0} allocated", ret);
 #endif
                 return ret;
             }
             else
             {
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("out of promises at {0}", this);
 #endif
                 return null;
@@ -86,7 +86,7 @@ namespace ICSimulator
 
         public void putPromise(Promise p)
         {
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("putting promise {0} back, count was {1}", p, promises.Count);
 #endif
             if (!p.active)

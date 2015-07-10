@@ -125,7 +125,7 @@ namespace ICSimulator
         private ulong ejectingPacket = ulong.MaxValue;
         bool ejectLocal()
         {
-#if DEBUG
+#if DEBUG_
             if (ID == 0) Console.WriteLine("------");
 #endif
             bool noneEjected = true;
@@ -133,26 +133,26 @@ namespace ICSimulator
             for (int dir = 0; dir < 4; dir++)
                 if (linkIn[dir] != null && linkIn[dir].Out != null)
                 {
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("flit at {0}: {1}", coord, linkIn[dir].Out);
 #endif
                     if (linkIn[dir].Out.dest.ID == ID)
                     {
                         Flit f = linkIn[dir].Out;
                         f.inDir = dir;
-#if DEBUG
+#if DEBUG_
                         Console.WriteLine("candidate ejection {0} at {1}", f, coord);
 #endif
 
                         if (f.packet.ID == ejectingPacket || (f.isHeadFlit && noneEjected && ejectingPacket == ulong.MaxValue) || Config.router.ejectMultipleCheat)
                         {
-#if DEBUG
+#if DEBUG_
                             Console.WriteLine("ejecting at {0}: flit {1}", coord, f);
 #endif
                             statsEjectFlit(f);
                             m_n.receiveFlit(f);
 
-#if DEBUG
+#if DEBUG_
                             Console.WriteLine("ejecting flit {0} of packet {1} ({2}/{3} arrived)", f.flitNr, f.packet.ID, f.packet.nrOfArrivedFlits, f.packet.nrOfFlits);
 #endif
 
@@ -163,7 +163,7 @@ namespace ICSimulator
                             {
                                 sendTeardown(f);
                                 ejectingPacket = f.packet.ID;
-#if DEBUG
+#if DEBUG_
                                 Console.WriteLine("ejecting packet {0}",f.packet.ID);
 #endif
                             }
@@ -171,7 +171,7 @@ namespace ICSimulator
                             if (f.isTailFlit)
                             {
                                 ejectingPacket = ulong.MaxValue;
-#if DEBUG
+#if DEBUG_
                                 Console.WriteLine("no longer ejecting packet {0}", f.packet.ID);
 #endif
                             }
@@ -181,7 +181,7 @@ namespace ICSimulator
                         else
                             if (f.isHeadFlit)
                             {
-#if DEBUG
+#if DEBUG_
                                 Console.WriteLine("SECONDARY EJECTION DROPPED at proc {0} with dir {1}", ID, dir);
 #endif
                                 sendNack(f);
@@ -217,7 +217,7 @@ namespace ICSimulator
                 if (linkIn[dir] != null && linkIn[dir].Out != null &&
                     !linkIn[dir].Out.isHeadFlit)
                 {
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("non-head flit: {0}", linkIn[dir].Out);
 #endif
                     Flit f = linkIn[dir].Out; // grab the input flit from the link
@@ -453,7 +453,7 @@ namespace ICSimulator
                         {
                             if (nack_due[nackIn[i].Out.packet.scarab_retransmit] < Simulator.CurrentRound)
                             {
-#if DEBUG
+#if DEBUG_
                                 Console.WriteLine("late nack: due {0}, t = {1} (ID = {2})",
                                                   nack_due[nackIn[i].Out.packet.scarab_retransmit], Simulator.CurrentRound,
                                                   nackIn[i].Out.packet.scarab_retransmit.ID);
@@ -474,7 +474,7 @@ namespace ICSimulator
                     }
                     else
                     {
-#if DEBUG
+#if DEBUG_
                         Console.WriteLine("Proc {2} nack routing from in {0} to out {1}", i, nackRouting[i], ID);
 #endif
                         nackOut[nackRouting[i]].In = nackIn[i].Out;
@@ -574,7 +574,7 @@ namespace ICSimulator
 
         public override bool canInjectFlit(Flit f)
         {
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("canInjectFlit at {0}: answer is {1}", coord, m_injectSlot == null);
 #endif
             return m_injectSlot == null;
@@ -585,7 +585,7 @@ namespace ICSimulator
             if (m_injectSlot != null)
                 throw new Exception("Trying to inject twice in one cycle");
 
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("injectFlit at {0}: {1}", coord, f);
 #endif
 

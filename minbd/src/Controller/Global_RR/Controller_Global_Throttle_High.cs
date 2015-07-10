@@ -79,7 +79,7 @@ namespace ICSimulator
 
         void setThrottling()
         {
-#if DEBUG
+#if DEBUG_
             //Console.WriteLine("\n:: cycle {0} ::",
                     //Simulator.CurrentRound);
 #endif
@@ -100,7 +100,7 @@ namespace ICSimulator
                 }
             }        
             recordStats();
-#if DEBUG
+#if DEBUG_
             bool flag=false;
 #endif
             ulong hcount=0;
@@ -120,7 +120,7 @@ namespace ICSimulator
 
                 if (MPKI[i] > Config.MPKI_high_node)
                 {
-#if DEBUG
+#if DEBUG_
                     if(!flag)
                     {
                         Console.Write("\n#ON#: ");
@@ -128,7 +128,7 @@ namespace ICSimulator
                     }
 #endif
                     m_isThrottled[i] = true;
-#if DEBUG
+#if DEBUG_
                     Console.Write("(ID:{0},M:{1},I:{2}) ",i,MPKI[i],numInject[i]);
 #endif
                 }

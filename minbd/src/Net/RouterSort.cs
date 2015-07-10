@@ -216,7 +216,7 @@ namespace ICSimulator
 	                            input[i] = input[4];
                                 input[i].orig_input = -1;
                                 
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("\tinjecting flit {0}.{1} at node ({2},{3}) cyc {4}", input[i].packet.ID, input[i].flitNr, input[i].currentX, input[i].currentY, Simulator.CurrentRound);
 #endif
                                 if (Simulator.rand.Next(0,100) < Config.initialInfectionRate)
@@ -1567,7 +1567,7 @@ namespace ICSimulator
                 }
 
             if (bestDir != -1) linkIn[bestDir].Out = null;
-#if DEBUG
+#if DEBUG_
             if (ret != null)
                 Console.WriteLine("ejecting flit {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
 #endif

@@ -52,7 +52,7 @@ namespace ICSimulator
                 ret = m_ej[m_ej_rr];
                 m_ej[m_ej_rr] = null;
             }
-#if DEBUG
+#if DEBUG_
             if (ret != null)
                 Console.WriteLine("| ejecting flit  {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
 #endif
@@ -75,7 +75,7 @@ namespace ICSimulator
                 }
 
             if (bestDir != -1) linkIn[bestDir].Out = null;
-#if DEBUG
+#if DEBUG_
             if (ret != null)
                 Console.WriteLine("| ejecting flit  {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
 #endif
@@ -303,7 +303,7 @@ namespace ICSimulator
         		{
         			if(swapX)
         			{
-#if DEBUG
+#if DEBUG_
                			Console.WriteLine("\tturning flitY {0}.{1} at node {2} cyc {3}", flitY.packet.ID, flitY.flitNr, coord, Simulator.CurrentRound);
 #endif	
         				
@@ -321,7 +321,7 @@ namespace ICSimulator
         		{
         			if (swapY)
         			{
-#if DEBUG
+#if DEBUG_
                			Console.WriteLine("\tturning flitX {0}.{1} at node {2} cyc {3}", flitX.packet.ID, flitX.flitNr, coord, Simulator.CurrentRound);
 #endif
 						if (turnX == turn_priority(freeY, turnX))
@@ -337,7 +337,7 @@ namespace ICSimulator
         	}
         	else if(turnY != -1 && turnX != -1)
         	{
-#if DEBUG
+#if DEBUG_
         		Console.WriteLine("\tturning flitX {0}.{1} and flitY {2}.{3} at node {4} cyc {5}", flitX.packet.ID, flitX.flitNr, flitY.packet.ID, flitY.flitNr, coord, Simulator.CurrentRound);
 #endif	
 		   		swap(turnX, turnY);
@@ -443,7 +443,7 @@ namespace ICSimulator
             /* Inject and route flits in correct directions */
             inject(out injected);
 
-#if DEBUG			
+#if DEBUG_			
 			for (int dir = 0; dir < 4; dir++)
 				if(input[dir] != null)
         			Console.WriteLine("flit {0}.{1} at node {2} cyc {3} AFTER_INJ", input[dir].packet.ID, input[dir].flitNr, coord, Simulator.CurrentRound);
@@ -453,7 +453,7 @@ namespace ICSimulator
             	throw new Exception("Not removing injected flit from slot");
             
             route();
-#if DEBUG			
+#if DEBUG_			
 			for (int dir = 0; dir < 4; dir++)
 				if(input[dir] != null)
         			Console.WriteLine("flit {0}.{1} at node {2} cyc {3} AFTER_ROUTE", input[dir].packet.ID, input[dir].flitNr, coord, Simulator.CurrentRound);
@@ -488,7 +488,7 @@ namespace ICSimulator
 			{
                 if (input[dir] != null)
                 {
-#if DEBUG
+#if DEBUG_
         		Console.WriteLine("flit {0}.{1} at node {2} cyc {3} END", input[dir].packet.ID, input[dir].flitNr, coord, Simulator.CurrentRound);
 #endif 
                     if (linkOut[dir] == null)
@@ -496,7 +496,7 @@ namespace ICSimulator
                                     coord, dir));
                     linkOut[dir].In = input[dir];
                 }
-#if DEBUG
+#if DEBUG_
                 //else if(dir == Simulator.DIR_LEFT || dir == Simulator.DIR_RIGHT)
       			//	Console.WriteLine("no flit at node {0} cyc {1}", coord, Simulator.CurrentRound);
 #endif 

@@ -29,4 +29,12 @@ namespace ICSimulator
             return false;
         }
     }
+
+    public class SynthNodeMapping : NodeMapping
+    {
+        public override bool hasCPU(int id) { return false; }
+        public override bool hasSh(int id) { return false; }
+        public override bool hasMem(int id) { return false; }
+
+    }
 }

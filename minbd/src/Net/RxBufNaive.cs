@@ -82,7 +82,7 @@ namespace ICSimulator
                     if (m_rx_jit_buf[i] == null)
                     {
                         slot = i;
-#if DEBUG
+#if DEBUG_
                         Console.WriteLine("ID {0}: flit {1}.{2} into slot {3} ({4} of {5}) (age {6})",
                                           m_n.coord.ID, f.packet.ID, f.flitNr, slot, f.packet.nrOfArrivedFlits, f.packet.nrOfFlits, Simulator.CurrentRound - f.packet.creationTime);
 #endif
@@ -103,7 +103,7 @@ namespace ICSimulator
                         evictFlit(m_rx_jit_buf[best]);
                         slot = best;
 
-#if DEBUG
+#if DEBUG_
                         Console.WriteLine("ID {0}: flit {1}.{2} into slot {3} (age {4} evict-age {55555
                                           m_n.coord.ID, f.packet.ID, f.flitNr, slot,
                                           Simulator.CurrentRound - f.packet.creationTime,
@@ -119,7 +119,7 @@ namespace ICSimulator
                     f.packet.nrOfArrivedFlits++;
                     if (f.packet.nrOfArrivedFlits == f.packet.nrOfFlits)
                     {
-#if DEBUG
+#if DEBUG_
                         Console.WriteLine("ID {0}: deliver {1} ({2} flits)", m_n.coord.ID, f.packet.ID, f.packet.nrOfFlits);
 #endif
                         // if delivered packet, free slots
@@ -127,7 +127,7 @@ namespace ICSimulator
                             if (m_rx_jit_buf[i] != null &&
                                 m_rx_jit_buf[i].packet == f.packet)
                             {
-#if DEBUG
+#if DEBUG_
                                 Console.WriteLine("ID {0}: nulling {1}", m_n.coord.ID, i);
 #endif
                                 m_rx_jit_buf[i] = null;
@@ -140,7 +140,7 @@ namespace ICSimulator
                 {
                     // no space and can't evict -- must bounce
                     m_ev(f);
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("ID {0}: bouncing {1}.{2}", m_n.coord.ID, f.flitNr, f.packet.ID);
 #endif
                 }

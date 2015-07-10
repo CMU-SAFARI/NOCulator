@@ -5,6 +5,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.IO;
+using System.Linq;
 
 namespace ICSimulator
 {
@@ -30,82 +31,27 @@ namespace ICSimulator
         FinishMode m_finish;
         ulong m_finishCount;
 
+        public int faultCount = 0;
         public FinishMode finishMode { get { return m_finish; } }
 
         public double _cycle_netutil; // HACK -- controllers can use this.
         public ulong  _cycle_insns;   // HACK -- controllers can use this.
 
+        Random faultRandomizer;
         public Network(int dimX, int dimY)
         {
             X = dimX;
             Y = dimY;
         }
 
-        public void setup()
+        private void ringSetup()
         {
-            routers = new Router[Config.N * (1 + ((Config.RingRouter) ? Config.nrConnections : 0))];
-            nodes = new Node[Config.N];
-            links = new List<Link>();
-            cache = new CmpCache();
-            
-            ringRouter = new RingRouter[Config.N * (1 + Config.nrConnections)];
-
-            /*if(Config.disjointRings)
-            {
-            	bool ignoreCase = true;
-            	if (String.Compare(Config.disjointConnection, "mesh", ignoreCase) == 0)
-            		connector = new RingRouter[Config.N]; // Fix later
-            	else if (String.Compare(Config.disjointConnection, "torus", ignoreCase) == 0)
-            		connector = new RingRouter[Config.N];
-            	else if (String.Compare(Config.disjointConnection, "ring", ignoreCase) == 0)
-            		connector = new RingRouter[Config.N]; // Fix later
-            }*/
-
-            ParseFinish(Config.finish);
-
-            workload = new Workload(Config.traceFilenames);
-
-            mapping = new NodeMapping_AllCPU_SharedCache();
-
-            // create routers and nodes
-            for (int n = 0; n < Config.N; n++)
-            {
-                Coord c = new Coord(n);
-                nodes[n] = new Node(mapping, c);
-                
-                if (!Config.RingRouter)
-                {
-                	routers[n] = MakeRouter(c);
-                	nodes[n].setRouter(routers[n]);
-                	routers[n].setNode(nodes[n]);
-                }
-            }
-            /*if (Config.disjointRings)
-	            for (int n = 0; n < 8; n++)
-	            {
-	              	connectors[n] = MakeConnector(n);
-	            }
-			*/
-            // create the Golden manager
-            golden = new Golden();
-
-            if (Config.RouterEvaluation)
-                return;
-			
-            /*
-             * Ring width = node width of each ring
-             * Ring height = node height of each ring
-             * NrConnections = number of connections routers per node
-             * 
-             */
-            if (Config.RingRouter)
-            {
             	int nrPlaceholdersPerNetwork = Config.nrPlaceholders / 2;
                 int nrNodesPerRing = (Config.ringWidth * 2 + Config.ringHeight * 2 - 4);
                 int nrConnectPerRing = nrNodesPerRing * Config.nrConnections;
                 int nrItemInRing = nrConnectPerRing + nrNodesPerRing;
                 
-                #if DEBUG
+                #if DEBUG_
                 	Console.WriteLine("NrNodesPerRing = {0}, NrConectPerRing = {1}, NrItemInRing = {2}", nrNodesPerRing, nrConnectPerRing, nrItemInRing);
                 #endif
                 int prevID = -1;
@@ -130,7 +76,7 @@ namespace ICSimulator
                             int nodeID = RingCoord.getIDfromRingID(ringID);
                             RingCoord rc = new RingCoord(ringID);
                             
-                            #if DEBUG
+                            #if DEBUG_
                             	Console.WriteLine("ringID = {0}, nodeID = {1}, prevID = {2}", ringID, nodeID, prevID);
                             #endif
                             
@@ -149,7 +95,7 @@ namespace ICSimulator
                             	Link prev = new Link(Config.router.linkLatency - 1);
                             	links.Add(prev);
                             	
-                            	#if DEBUG
+                            	#if DEBUG_
                             		Console.WriteLine("Connecting prev{0} & current{1} with link {2}", prevID, ringID, prev);
                             	#endif
                             	
@@ -184,7 +130,7 @@ namespace ICSimulator
                                 Link prev_link = new Link(Config.router.linkLatency - 1);
                                 links.Add(prev_link);
                                 
-                                #if DEBUG
+                                #if DEBUG_
                             		Console.WriteLine("Connecting prev{0} & connect{1} with link {2}", prevID, connectID, prev_link);
                                 #endif
                                 
@@ -208,7 +154,7 @@ namespace ICSimulator
                        	Link finish_link = new Link(Config.router.linkLatency - 1); 
                        	links.Add(finish_link);
                         
-                        #if DEBUG
+                        #if DEBUG_
                         Console.WriteLine("Finishing connecting prev{0} & start{1} with link {2}", prevID, startID, finish_link);
                         #endif
                         
@@ -229,7 +175,7 @@ namespace ICSimulator
                 if (Config.nrConnections > 1)
                 	throw new Exception("Check the rest of the code before you continue making more connections");
 				
-				#if DEBUG
+				#if DEBUG_
 					Console.WriteLine("Starting connections....");
 				#endif
 				
@@ -260,7 +206,7 @@ namespace ICSimulator
                 	 			currentID  = RingCoord.getIDfromXYZ(x, y, z);
 	 							
                     			
-                    			#if DEBUG
+                    			#if DEBUG_
                 	 				Console.WriteLine("Current Coord ({0},{1},{2})", x, y, z);
                 	 			#endif
                 	 			
@@ -271,7 +217,7 @@ namespace ICSimulator
                 	 						oppDir = Simulator.DIR_DOWN;
                 	 						oppY = y - 1;
                 	 						
-                	 						#if DEBUG
+                	 						#if DEBUG_
                 	 							Console.WriteLine("0");
                 	 						#endif
                 	 						
@@ -292,7 +238,7 @@ namespace ICSimulator
 													int nextID = RingCoord.getIDfromXYZ(x, y, nextZ);
 													int previousID = RingCoord.getIDfromXYZ(x, y, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, currentID {4}, previousID {5}", oppX, oppY, oppZ, nextID, currentID, previousID);
 													#endif
 													
@@ -310,7 +256,7 @@ namespace ICSimulator
 													nextID = RingCoord.getIDfromXYZ(oppX, oppY, nextZ);
 													previousID = RingCoord.getIDfromXYZ(oppX, oppY, prevZ);
 															
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, oppID {4}, previousID {5}", oppX, oppY, oppZ, nextID, oppID, previousID);
 													#endif
 													
@@ -334,7 +280,7 @@ namespace ICSimulator
                 	 						oppDir = Simulator.DIR_LEFT;
                 	 						oppX = x + 1;
                 	 						
-                	 						#if DEBUG
+                	 						#if DEBUG_
                 	 							Console.WriteLine("1");
                 	 						#endif
                 	 						
@@ -355,7 +301,7 @@ namespace ICSimulator
 													int nextID = RingCoord.getIDfromXYZ(x, y, nextZ);
 													int previousID = RingCoord.getIDfromXYZ(x, y, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, currentID {4}, previousID {5}", oppX, oppY, oppZ, nextID, currentID, previousID);
 													#endif
 													
@@ -373,7 +319,7 @@ namespace ICSimulator
 													nextID = RingCoord.getIDfromXYZ(oppX, oppY, nextZ);
 													previousID = RingCoord.getIDfromXYZ(oppX, oppY, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, oppID {4}, previousID {5}", oppX, oppY, oppZ, nextID, oppID, previousID);
 													#endif
 													
@@ -397,7 +343,7 @@ namespace ICSimulator
                 	 						oppDir = Simulator.DIR_UP;
                 	 						oppY = y + 1;
                 	 						
-                	 						#if DEBUG
+                	 						#if DEBUG_
                 	 							Console.WriteLine("2");
                 	 						#endif
                 	 						
@@ -418,7 +364,7 @@ namespace ICSimulator
 													int nextID = RingCoord.getIDfromXYZ(x, y, nextZ);
 													int previousID = RingCoord.getIDfromXYZ(x, y, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, currentID {4}, previousID {5}", oppX, oppY, oppZ, nextID, currentID, previousID);
 													#endif
 													
@@ -436,7 +382,7 @@ namespace ICSimulator
 													nextID = RingCoord.getIDfromXYZ(oppX, oppY, nextZ);
 													previousID = RingCoord.getIDfromXYZ(oppX, oppY, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, oppID {4}, previousID {5}", oppX, oppY, oppZ, nextID, oppID, previousID);
 													#endif
 													
@@ -458,7 +404,7 @@ namespace ICSimulator
 
                 	 				case 3: connectionDir = Simulator.DIR_LEFT;
                 	 				
-                	 						#if DEBUG
+                	 						#if DEBUG_
                 	 							Console.WriteLine("3");
                 	 						#endif
                 	 						
@@ -481,7 +427,7 @@ namespace ICSimulator
 													int nextID = RingCoord.getIDfromXYZ(x, y, nextZ);
 													int previousID = RingCoord.getIDfromXYZ(x, y, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, currentID {4}, previousID {5}", oppX, oppY, oppZ, nextID, currentID, previousID);
 													#endif
 													
@@ -499,7 +445,7 @@ namespace ICSimulator
 													nextID = RingCoord.getIDfromXYZ(oppX, oppY, nextZ);
 													previousID = RingCoord.getIDfromXYZ(oppX, oppY, prevZ);
 													
-													#if DEBUG
+													#if DEBUG_
 														Console.WriteLine("opp({0},{1},{2})\tnextID {3}, oppID {4}, previousID {5}", oppX, oppY, oppZ, nextID, oppID, previousID);
 													#endif	
 																
@@ -526,7 +472,7 @@ namespace ICSimulator
 								// ensure no duplication by handling a link at the lexicographically
                     			// first router
                     			if (oppX < x || (oppX == x && oppY < y)) continue;													
-								#if DEBUG
+								#if DEBUG_
 									Console.WriteLine("Creating normal link\topp({0},{1},{2})\toppID {3} dir {4} : oppdir {5}", oppX, oppY, oppZ, oppID, connectionDir, oppDir);
 								#endif	
 								
@@ -535,7 +481,7 @@ namespace ICSimulator
 								links.Add(linkA);
 								links.Add(linkB);
 								
-								#if DEBUG
+								#if DEBUG_
                 	 				Console.WriteLine("-------------------------------------------current{0} opp{1}", currentID, oppID);
 								#endif
 								
@@ -557,7 +503,7 @@ namespace ICSimulator
                 	 			
                 	}
                 }
-                #if DEBUG
+                #if DEBUG_
 				//Verification
 				for (int y = 0; y < Config.network_nrY / Config.ringHeight; y++) {
 					for (int x = 0; x < Config.network_nrX / Config.ringWidth; x++) {
@@ -592,485 +538,75 @@ namespace ICSimulator
 					}
 				}
 				#endif
+
+        }
+
+        public void setup()
+        {
+            routers = new Router[Config.N * (1 + ((Config.RingRouter) ? Config.nrConnections : 0))];
+            nodes = new Node[Config.N];
+            links = new List<Link>();
+            cache = new CmpCache();
+            
+            ringRouter = new RingRouter[Config.N * (1 + Config.nrConnections)];
+
+            /*if(Config.disjointRings)
+            {
+            	bool ignoreCase = true;
+            	if (String.Compare(Config.disjointConnection, "mesh", ignoreCase) == 0)
+            		connector = new RingRouter[Config.N]; // Fix later
+            	else if (String.Compare(Config.disjointConnection, "torus", ignoreCase) == 0)
+            		connector = new RingRouter[Config.N];
+            	else if (String.Compare(Config.disjointConnection, "ring", ignoreCase) == 0)
+            		connector = new RingRouter[Config.N]; // Fix later
+            }*/
+
+            ParseFinish(Config.finish);
+
+            workload = new Workload(Config.traceFilenames);
+
+            if (Config.synthGen)
+                mapping = new SynthNodeMapping();
+            else
+                mapping = new NodeMapping_AllCPU_SharedCache();
+
+            // create routers and nodes
+            for (int n = 0; n < Config.N; n++)
+            {
+                Coord c = new Coord(n);
+                nodes[n] = new Node(mapping, c);
+                
+                if (!Config.RingRouter)
+                {
+                	routers[n] = MakeRouter(c);
+                	nodes[n].setRouter(routers[n]);
+                	routers[n].setNode(nodes[n]);
+                }
+            }
+            /*if (Config.disjointRings)
+	            for (int n = 0; n < 8; n++)
+	            {
+	              	connectors[n] = MakeConnector(n);
+	            }
+			*/
+            // create the Golden manager
+            golden = new Golden();
+
+            if (Config.RouterEvaluation)
+                return;
+			
+            /*
+             * Ring width = node width of each ring
+             * Ring height = node height of each ring
+             * NrConnections = number of connections routers per node
+             * 
+             */
+            if (Config.RingRouter)
+            {
+            	ringSetup();
                 return;
             }
-
-            /*
-			if (Config.DisjointRings)
-			{
-				if (Config.SeperateConnect)
-				{
-					if (Config.network_nrX != Config.network_nrY)
-						throw new Exception("Only works with square networks");
-					
-					// Designed for ringSize of 2
-					// And square network
-					// TODO: work on different dimensions
-					
-					int ringLength = Config.ringSize;
-					int netXLength = Config.network_nrX;
-					int netYLength = Config.network_nrY;
-					
-					int numRings = (netYLength / ringLength) * (netXLength / ringLength);
-					int numRingNodes = (ringLength * ringLength);
-					
-					int dirOut    = 1;
-					int dirIn     = 0;
-					int dirInject = 2;
-					int dirEject  = 3;
-					
-					Link A_B   = new Link(Config.router.linkLatency - 1);
-					Link B_Z1A = new Link(Config.router.linkLatency - 1);
-					Link Z1A_C = new Link(Config.router.linkLatency - 1); 
-					Link C_Z4B = new Link(Config.router.linkLatency - 1);
-					Link Z4B_D = new Link(Config.router.linkLatency - 1);
-					Link D_A   = new Link(Config.router.linkLatency - 1);
-					
-					Link E_F   = new Link(Config.router.linkLatency - 1);
-					Link F_G   = new Link(Config.router.linkLatency - 1);
-					Link G_Z2A = new Link(Config.router.linkLatency - 1);
-					Link Z2A_H = new Link(Config.router.linkLatency - 1);
-					Link H_Z1B = new Link(Config.router.linkLatency - 1);
-					Link Z1B_E = new Link(Config.router.linkLatency - 1);
-					
-					Link M_Z2B = new Link(Config.router.linkLatency - 1);
-					Link Z2B_N = new Link(Config.router.linkLatency - 1);
-					Link N_O   = new Link(Config.router.linkLatency - 1);
-					Link O_P   = new Link(Config.router.linkLatency - 1);
-					Link P_Z3A = new Link(Config.router.linkLatency - 1);
-					Link Z3A_M = new Link(Config.router.linkLatency - 1);
-					
-					Link I_Z4A = new Link(Config.router.linkLatency - 1);
-					Link Z4A_J = new Link(Config.router.linkLatency - 1);
-					Link J_Z3B = new Link(Config.router.linkLatency - 1);
-					Link Z3B_K = new Link(Config.router.linkLatency - 1);
-					Link K_L   = new Link(Config.router.linkLatency - 1);
-					Link L_I   = new Link(Config.router.linkLatency - 1);
-					
-					Link A_B1 = new Link(Config.router.linkLatency - 1);
-					Link B_A1 = new Link(Config.router.linkLatency - 1);
-					
-					Link A_B2 = new Link(Config.router.linkLatency - 1);
-					Link B_A2 = new Link(Config.router.linkLatency - 1);
-					
-					Link A_B3 = new Link(Config.router.linkLatency - 1);
-					Link B_A3 = new Link(Config.router.linkLatency - 1);
-					
-					Link A_B4 = new Link(Config.router.linkLatency - 1);
-					Link B_A4 = new Link(Config.router.linkLatency - 1);
-					
-					links.Add(A_B);
-					links.Add(B_Z1A);
-					links.Add(Z1A_C);
-					links.Add(C_Z4B);
-					links.Add(Z4B_D);
-					links.Add(D_A);
-					
-					links.Add(E_F);
-					links.Add(F_G); 
-					links.Add(G_Z2A); 
-					links.Add(Z2A_H);
-					links.Add(H_Z1B);
-					links.Add(Z1B_E);
-					
-					links.Add(M_Z2B);
-					links.Add(Z2B_N);
-					links.Add(N_O);
-					links.Add(O_P);   
-					links.Add(P_Z3A);
-					links.Add(Z3A_M);
-					
-					links.Add(I_Z4A);
-					links.Add(Z4A_J);
-					links.Add(J_Z3B);
-					links.Add(Z3B_K);
-					links.Add(K_L);
-					links.Add(L_I); 
-					
-					links.Add(A_B1);
-					links.Add(B_A1);
-					
-					links.Add(A_B2);
-					links.Add(B_A2);
-					
-					links.Add(A_B3);
-					links.Add(B_A3); 
-					
-					links.Add(A_B4);
-					links.Add(B_A4);
-					
-					int A = Coord.getIDfromXY(0, 0);
-					int B = Coord.getIDfromXY(1, 0); 
-					int C = Coord.getIDfromXY(1, 1);
-					int D = Coord.getIDfromXY(0, 1);
-					int E = Coord.getIDfromXY(2, 0);
-					int F = Coord.getIDfromXY(3, 0);
-					int G = Coord.getIDfromXY(3, 1);
-					int H = Coord.getIDfromXY(2, 1);
-					int I = Coord.getIDfromXY(0, 2);
-					int J = Coord.getIDfromXY(1, 2);
-					int K = Coord.getIDfromXY(1, 3);
-					int L = Coord.getIDfromXY(0, 3);
-					int M = Coord.getIDfromXY(2, 2);
-					int N = Coord.getIDfromXY(3, 2);
-					int O = Coord.getIDfromXY(3, 3);
-					int P = Coord.getIDfromXY(2, 3);
-					
-					int Z1A = 0;
-					int Z1B = 1;
-					int Z2A = 2;
-					int Z2B = 3;
-					int Z3A = 4;
-					int Z3B = 5;
-					int Z4A = 6;
-					int Z4B = 7;
-					
-					routers[A].linkIn[dirIn]   = D_A;
-					routers[A].linkOut[dirOut] = A_B;
-					routers[A].neigh[dirIn]    = routers[D];
-					routers[A].neigh[dirOut]   = routers[B];
-					routers[A].neighbors = 2;
-
-					routers[B].linkIn[dirIn]   = A_B;
-					routers[B].linkOut[dirOut] = B_Z1A;
-					routers[B].neigh[dirIn]    = routers[A];
-					routers[B].neigh[dirOut]   = connectors[Z1A];
-					routers[B].neighbors = 2;
-
-					routers[C].linkIn[dirIn]   = Z1A_C;
-					routers[C].linkOut[dirOut] = C_Z4B;
-					routers[C].neigh[dirIn]    = connectors[Z1A];
-					routers[C].neigh[dirOut]   = connectors[Z4B];
-					routers[C].neighbors = 2;	
-					
-					routers[D].linkIn[dirIn]   = Z4B_D;
-					routers[D].linkOut[dirOut] = D_A;	
-					routers[D].neigh[dirIn]    = connectors[Z4B];
-					routers[D].neigh[dirOut]   = routers[A];
-					routers[D].neighbors = 2;
-				    
-				    if (Config.sameDir)
-				    {
-					    routers[E].linkIn[dirIn]   = Z1B_E;
-						routers[E].linkOut[dirOut] = E_F;
-						routers[E].neigh[dirIn]    = connectors[Z1B];
-						routers[E].neigh[dirOut]   = routers[F];
-						routers[E].neighbors = 2;	
-						
-						routers[F].linkIn[dirIn]   = E_F;
-						routers[F].linkOut[dirOut] = F_G;
-						routers[F].neigh[dirIn]    = routers[E];
-						routers[F].neigh[dirOut]   = routers[G];
-						routers[F].neighbors = 2;	
-						
-						routers[G].linkIn[dirIn]   = F_G;
-						routers[G].linkOut[dirOut] = G_Z2A;
-						routers[G].neigh[dirIn]    = routers[F];
-						routers[G].neigh[dirOut]   = connectors[Z2A];
-						routers[G].neighbors = 2;	
-						
-						routers[H].linkIn[dirIn]   = Z2A_H;
-						routers[H].linkOut[dirOut] = H_Z1B;
-						routers[H].neigh[dirIn]    = connectors[Z2A];
-						routers[H].neigh[dirOut]   = connectors[Z1B];
-						routers[H].neighbors = 2;	
-						
-						routers[I].linkIn[dirIn]   = L_I;
-						routers[I].linkOut[dirOut] = I_Z4A;
-						routers[I].neigh[dirIn]    = routers[L];
-						routers[I].neigh[dirOut]   = connectors[Z4A];
-						routers[I].neighbors = 2;	
-						
-						routers[J].linkIn[dirIn]   = Z4A_J;
-						routers[J].linkOut[dirOut] = J_Z3B;
-						routers[J].neigh[dirIn]    = connectors[Z4A];
-						routers[J].neigh[dirOut]   = connectors[Z3B];
-						routers[J].neighbors = 2;	
-
-						routers[K].linkIn[dirIn]   = Z3B_K;
-						routers[K].linkOut[dirOut] = K_L;
-						routers[K].neigh[dirIn]    = connectors[Z3B];
-						routers[K].neigh[dirOut]   = routers[L];
-						routers[K].neighbors = 2;	
-						
-						routers[L].linkIn[dirIn]   = K_L;
-						routers[L].linkOut[dirOut] = L_I;
-						routers[L].neigh[dirIn]    = routers[K];
-						routers[L].neigh[dirOut]   = routers[I];
-						routers[L].neighbors = 2;
-					}
-					else
-					{
-						routers[E].linkIn[dirIn]   = E_F;
-						routers[E].linkOut[dirOut] = Z1B_E;	
-						routers[E].neigh[dirIn]    = routers[F]; 
-						routers[E].neigh[dirOut]   = connectors[Z1B];
-						routers[E].neighbors = 2;	
-						
-						routers[F].linkIn[dirIn]   = F_G;
-						routers[F].linkOut[dirOut] = E_F;
-						routers[F].neigh[dirIn]    = routers[G];
-						routers[F].neigh[dirOut]   = routers[E];
-						routers[F].neighbors = 2;	
-						
-						routers[G].linkIn[dirIn]   = G_Z2A;
-						routers[G].linkOut[dirOut] = F_G;	
-						routers[G].neigh[dirIn]    = connectors[Z2A];
-						routers[G].neigh[dirOut]   = routers[F];
-						routers[G].neighbors = 2;	
-						
-						routers[H].linkIn[dirIn]   = H_Z1B;
-						routers[H].linkOut[dirOut] = Z2A_H;	
-						routers[H].neigh[dirIn]    = connectors[Z1B];
-						routers[H].neigh[dirOut]   = connectors[Z2A];
-						routers[H].neighbors = 2;	
-						
-						routers[I].linkIn[dirIn]   = I_Z4A;
-						routers[I].linkOut[dirOut] = L_I;	
-						routers[I].neigh[dirIn]    = connectors[Z4A];
-						routers[I].neigh[dirOut]   = routers[L];
-						routers[I].neighbors = 2;
-						
-						routers[J].linkIn[dirIn]   = J_Z3B;
-						routers[J].linkOut[dirOut] = Z4A_J;
-						routers[J].neigh[dirIn]    = connectors[Z3B];
-						routers[J].neigh[dirOut]   = connectors[Z4A];
-						routers[J].neighbors = 2;		
-
-						routers[K].linkIn[dirIn]   = K_L;
-						routers[K].linkOut[dirOut] = Z3B_K;	
-						routers[K].neigh[dirIn]    = routers[L];
-						routers[K].neigh[dirOut]   = connectors[Z3B];
-						routers[K].neighbors = 2;
-						
-						routers[L].linkIn[dirIn]   = L_I;
-						routers[L].linkOut[dirOut] = K_L;	
-						routers[L].neigh[dirIn]    = routers[I]; 
-						routers[L].neigh[dirOut]   = routers[K];
-						routers[L].neighbors = 2;
-					}
-					
-					routers[M].linkIn[dirIn]   = Z3A_M;
-					routers[M].linkOut[dirOut] = M_Z2B;	
-					routers[M].neigh[dirIn]    = connectors[Z3A];
-					routers[M].neigh[dirOut]   = connectors[Z2B];
-					routers[M].neighbors = 2;
-					
-					
-					routers[N].linkIn[dirIn]   = Z2B_N;
-					routers[N].linkOut[dirOut] = N_O;	
-					routers[N].neigh[dirIn]    = connectors[Z2B];
-					routers[N].neigh[dirOut]   = routers[O];
-					routers[N].neighbors = 2;
-					
-					routers[O].linkIn[dirIn]   = N_O;
-					routers[O].linkOut[dirOut] = O_P;	
-					routers[O].neigh[dirIn]    = routers[N];
-					routers[O].neigh[dirOut]   = routers[P];
-					routers[O].neighbors = 2;	
-					
-					routers[P].linkIn[dirIn]   = O_P;
-					routers[P].linkOut[dirOut] = P_Z3A;	
-					routers[P].neigh[dirIn]    = routers[O];
-					routers[P].neigh[dirOut]   = connectors[Z3A];
-					routers[P].neighbors = 2;	
-					
-					// Connectors
-					connectors[Z1A].linkIn[dirIn]     = B_Z1A;
-					connectors[Z1A].linkOut[dirOut]   = Z1A_C;
-					connectors[Z1A].neigh[dirIn]      = routers[B];
-					connectors[Z1A].neigh[dirOut]     = routers[C];
-					connectors[Z1A].neighbors        += 2;
-					
-					connectors[Z2B].linkIn[dirIn]     = M_Z2B;
-					connectors[Z2B].linkOut[dirOut]   = Z2B_N;
-					connectors[Z2B].neigh[dirIn]      = routers[M];
-					connectors[Z2B].neigh[dirOut]     = routers[N];
-					connectors[Z2B].neighbors        += 2;
-					
-					connectors[Z3A].linkIn[dirIn]     = P_Z3A;
-					connectors[Z3A].linkOut[dirOut]   = Z3A_M;
-					connectors[Z3A].neigh[dirIn]      = routers[P];
-					connectors[Z3A].neigh[dirOut]     = routers[M];
-					connectors[Z3A].neighbors        += 2;	
-						
-					connectors[Z4B].linkIn[dirIn]     = C_Z4B;
-					connectors[Z4B].linkOut[dirOut]   = Z4B_D;
-					connectors[Z4B].neigh[dirIn]      = routers[C];
-					connectors[Z4B].neigh[dirOut]     = routers[D];
-					connectors[Z4B].neighbors        += 2;	
-					
-					if (Config.sameDir)
-					{
-						connectors[Z1B].linkIn[dirIn]     = H_Z1B;
-						connectors[Z1B].linkOut[dirOut]   = Z1B_E;
-						connectors[Z1B].neigh[dirIn]      = routers[H];
-						connectors[Z1B].neigh[dirOut]     = routers[E];
-						connectors[Z1B].neighbors        += 2;	
-					
-						connectors[Z2A].linkIn[dirIn]     = G_Z2A;
-						connectors[Z2A].linkOut[dirOut]   = Z2A_H;
-						connectors[Z2A].neigh[dirIn]      = routers[G];
-						connectors[Z2A].neigh[dirOut]     = routers[H];
-						connectors[Z2A].neighbors        += 2;	
-						
-						connectors[Z4A].linkIn[dirIn]     = I_Z4A;
-						connectors[Z4A].linkOut[dirOut]   = Z4A_J;
-						connectors[Z4A].neigh[dirIn]      = routers[I];
-						connectors[Z4A].neigh[dirOut]     = routers[J];
-						connectors[Z4A].neighbors        += 2;	
-					
-						connectors[Z3B].linkIn[dirIn]     = J_Z3B;
-						connectors[Z3B].linkOut[dirOut]   = Z3B_K;	
-						connectors[Z3B].neigh[dirIn]      = routers[J];
-						connectors[Z3B].neigh[dirOut]     = routers[K];
-						connectors[Z3B].neighbors        += 2;
-					}
-					else
-					{
-						connectors[Z1B].linkIn[dirIn]     = Z1B_E;
-						connectors[Z1B].linkOut[dirOut]   = H_Z1B;
-						connectors[Z1B].neigh[dirIn]      = routers[E];
-						connectors[Z1B].neigh[dirOut]     = routers[H];
-						connectors[Z1B].neighbors        += 2;		
-					
-						connectors[Z2A].linkIn[dirIn]     = Z2A_H;
-						connectors[Z2A].linkOut[dirOut]   = G_Z2A;
-						connectors[Z2A].neigh[dirIn]      = routers[H];
-						connectors[Z2A].neigh[dirOut]     = routers[G];
-						connectors[Z2A].neighbors        += 2;		
-					
-						connectors[Z4A].linkIn[dirIn]     = Z4A_J;
-						connectors[Z4A].linkOut[dirOut]   = I_Z4A;
-						connectors[Z4A].neigh[dirIn]      = routers[J];
-						connectors[Z4A].neigh[dirOut]     = routers[I];
-						connectors[Z4A].neighbors        += 2;		
-					
-						connectors[Z3B].linkIn[dirIn]     = Z3B_K;
-						connectors[Z3B].linkOut[dirOut]   = J_Z3B;	
-						connectors[Z3B].neigh[dirIn]      = routers[K];
-						connectors[Z3B].neigh[dirOut]     = routers[J];
-						connectors[Z3B].neighbors        += 2;	
-					}
-					
-					connectors[Z1A].linkIn[dirInject] = B_A1;
-					connectors[Z1A].linkOut[dirEject] = A_B1;
-					connectors[Z1A].neigh[dirIn]      = connectors[Z1B];
-					connectors[Z1A].neigh[dirOut]     = connectors[Z1B];
-					connectors[Z1A].neighbors        += 2;	
-						
-					connectors[Z1B].linkIn[dirInject] = A_B1;
-					connectors[Z1B].linkOut[dirEject] = B_A1;	
-					connectors[Z1B].neigh[dirIn]      = connectors[Z1A];
-					connectors[Z1B].neigh[dirOut]     = connectors[Z1A];
-					connectors[Z1B].neighbors        += 2;	
-					
-					connectors[Z2A].linkIn[dirInject] = B_A2;
-					connectors[Z2A].linkOut[dirEject] = A_B2;	
-					connectors[Z2A].neigh[dirIn]      = connectors[Z2B];
-					connectors[Z2A].neigh[dirOut]     = connectors[Z2B];
-					connectors[Z2A].neighbors        += 2;	
-					
-					connectors[Z2B].linkIn[dirInject] = A_B2;
-					connectors[Z2B].linkOut[dirEject] = B_A2;
-					connectors[Z2B].neigh[dirIn]      = connectors[Z2A];
-					connectors[Z2B].neigh[dirOut]     = connectors[Z2A];
-					connectors[Z2B].neighbors        += 2;		
-					
-					connectors[Z3A].linkIn[dirInject] = B_A3;
-					connectors[Z3A].linkOut[dirEject] = A_B3;
-					connectors[Z3A].neigh[dirIn]      = connectors[Z3B];
-					connectors[Z3A].neigh[dirOut]     = connectors[Z3B];
-					connectors[Z3A].neighbors        += 2;	
-						
-					connectors[Z3B].linkIn[dirInject] = A_B3;
-					connectors[Z3B].linkOut[dirEject] = B_A3;	
-					connectors[Z3B].neigh[dirIn]      = connectors[Z3A];
-					connectors[Z3B].neigh[dirOut]     = connectors[Z3A];
-					connectors[Z3B].neighbors        += 2;		
-					
-					connectors[Z4A].linkIn[dirInject] = B_A4;
-					connectors[Z4A].linkOut[dirEject] = A_B4;
-					connectors[Z4A].neigh[dirIn]      = connectors[Z4B];
-					connectors[Z4A].neigh[dirOut]     = connectors[Z4B];
-					connectors[Z4A].neighbors        += 2;			
-					
-					connectors[Z4B].linkIn[dirInject] = A_B4;
-					connectors[Z4B].linkOut[dirEject] = B_A4;
-					connectors[Z4B].neigh[dirIn]      = connectors[Z4A];
-					connectors[Z4B].neigh[dirOut]     = connectors[Z4A];
-					connectors[Z4B].neighbors        += 2;		
-						
-					return;
-				}
-			}
 			
-			/*
-			if (Config.StreetRings)
-			{
-				// connect the network with Links
-	            for (int n = 0; n < Config.N; n++)
-	            {
-	                int x, y;
-	                Coord.getXYfromID(n, out x, out y);
-	
-	                // inter-router links
-	                for (int dir = 0; dir < 2; dir++)
-	                {
-	                    int oppDir = (dir + 2) % 4; // direction from neighbor's perspective
-	
-	                    // determine neighbor's coordinates
-	                    int x_, y_;
-	                    switch (x % 2)
-	                    {
-		                    case 0:
-				            	switch (dir)
-				                {
-				                    case 0:    x_ = x;     y_ = y + 1; break;
-				                    case 1:    x_ = x;     y_ = y - 1; break;
-				                    default: continue;
-				                }
-				                break;
-		                    
-		                    case 1:
-			                    switch (dir)
-			                    {
-			                        case 0:    x_ = x;     y_ = y - 1; break;
-			                        case 1:    x_ = x;     y_ = y + 1; break;
-			                        default: continue;
-			                    }
-		                    break;
-						}
-				
-	
-	                    // ensure no duplication by handling a link at the lexicographically
-	                    // first router
-	                    if (x_ < x || (x_ == x && y_ < y)) continue;
-	
-	                    // Link param is *extra* latency (over the standard 1 cycle)
-	                    Link dirA = new Link(Config.router.linkLatency - 1);
-	                    Link dirB = new Link(Config.router.linkLatency - 1);
-	                    links.Add(dirA);
-	                    links.Add(dirB);
-	
-	                    // link 'em up
-	                    routers[Coord.getIDfromXY(x,  y)].linkOut[dir]    = dirA;
-	                    routers[Coord.getIDfromXY(x_, y_)].linkIn[oppDir] = dirA;
-	
-	                    routers[Coord.getIDfromXY(x,  y)].linkIn[dir]      = dirB;
-	                    routers[Coord.getIDfromXY(x_, y_)].linkOut[oppDir] = dirB;
-	
-	                    routers[Coord.getIDfromXY(x,  y)].neighbors++;
-	                    routers[Coord.getIDfromXY(x_, y_)].neighbors++;
-	
-	                    routers[Coord.getIDfromXY(x,  y)].neigh[dir]     = routers[Coord.getIDfromXY(x_, y_)];
-	                    routers[Coord.getIDfromXY(x_, y_)].neigh[oppDir] = routers[Coord.getIDfromXY(x,  y)];
-	
-	                }
-	            }
-			}
-			*/
-
             // connect the network with Links
             for (int n = 0; n < Config.N; n++)
             {
@@ -1142,8 +678,16 @@ namespace ICSimulator
                     routers[ID].linkIn[dir]      = dirB;
                     routers[oppID].linkOut[oppDir] = dirB;
 
+                    dirA.outCoord = routers[ID].coord;
+                    dirA.dir = dir;
+                    dirB.outCoord = routers[oppID].coord;
+                    dirB.dir = oppDir;
+
+
                     routers[ID].neighbors++;
                     routers[oppID].neighbors++;
+                    routers[ID].healthyNeighbors = routers[ID].neighbors;
+                    routers[oppID].healthyNeighbors = routers[ID].neighbors;
 
                     routers[ID].neigh[dir]     = routers[oppID];
                     routers[oppID].neigh[oppDir] = routers[ID];
@@ -1171,6 +715,125 @@ namespace ICSimulator
                 for (int i = 0; i < Config.N; i++)
                     if (routers[i].neighbors < 4)
                         throw new Exception("torus construction not successful!");
+
+            //Initializing the fault configuration of the system
+            faultRandomizer = new Random(Config.rand_seed);
+            if (Config.fault_initialCount != 0)
+            {
+                while (faultCount < Config.fault_initialCount)
+                    injectNewFault();
+            }
+        }
+
+        public void checkReachables()
+        {
+            for (int n = 0; n < Config.N; n++)
+            {
+                Router node = routers[n];
+                node.visited = false;
+                for (int k = 0; k < Config.N; k++)
+                {
+                    node.canReach[k] = false;
+                }
+            }
+
+            Router root = routers[0]; //This chooses root
+            while (root != null)
+            {
+                BFS(root);
+                root = selectRoot();
+            }
+
+            for (int n = 0; n < Config.N; n++)
+                routers[n].visited = false;
+        }
+
+        Router selectRoot()
+        {
+            for (int i = 0; i < Config.N; i++)
+                if (routers[i].visited == false)
+                    return routers[i];
+            return null;
+        }
+
+        void BFS(Router startNode)
+        {
+            List<Router> visitedQ = new List<Router>();
+            List<Router> queue = new List<Router>();
+
+            startNode.visited = true;
+            queue.Add(startNode);
+            visitedQ.Add(startNode);
+
+            while (queue.Count != 0)
+            {
+                Router s = queue.First();
+                queue.RemoveAt(0);
+
+                for (int i = 0; i < 4; i++)
+                {
+                    if (s.linkOut[i] == null || !s.linkOut[i].healthy)
+                        continue;
+
+                    Router child = s.neigh[i];
+
+                    if (!child.visited)
+                    {
+                        child.visited = true;
+                        queue.Add(child);
+                        visitedQ.Add(child);
+                    }
+                }
+            }
+
+            foreach(Router src in visitedQ)
+                foreach (Router dst in visitedQ)
+                {
+                    src.canReach[dst.ID] = true;
+                }
+
+        }
+
+        public void breakNode(int n)
+        {
+            for (int i = 0; i < 4; i++)
+                if (routers[n].linkOut[i] != null)
+                    breakLink(n, i);
+            nodes[n].healthy = false;
+        }
+
+        public void breakLink(int n, int dir)
+        {
+            routers[n].linkOut[dir].goFaulty();
+            routers[n].linkIn[dir].goFaulty();
+            routers[n].healthyNeighbors--;
+            routers[n].neighbor(dir).healthyNeighbors--;
+        }
+        
+
+        public void injectNewFault()
+        {
+            int n, dir;
+            if (Config.fault_type == Config.faultType.node)
+            {
+                do
+                {
+                    n = faultRandomizer.Next(Config.N);
+                } while (nodes[n].healthy == false);
+
+                breakNode(n);
+            }
+            else
+            {
+                do
+                {
+                    n = faultRandomizer.Next(Config.N);
+                    dir = faultRandomizer.Next(2);
+                } while (routers[n].linkOut[dir] == null || routers[n].linkOut[dir].healthy == false);
+
+                breakLink(n, dir);
+            }
+            faultCount++;
         }
 
         public void doStep()
@@ -1241,6 +904,15 @@ namespace ICSimulator
             for (int i = 0; i < Config.N; i++)
                 if (nodes[i].Livelocked) return true;
             return false;
+        }
+
+        public bool LiveLockedRouters()
+        {
+            for (int i = 0; i < Config.N; i++)
+                if (nodes[i].router.hasLiveLock())
+                    return true;
+            return false;
+
         }
 
         void ParseFinish(string finish)
@@ -1366,6 +1038,8 @@ namespace ICSimulator
                     return new Router_New_ClosestFirst(c);
                 case RouterAlgorithm.NEW_GP:
                     return new Router_New_GP(c);
+                case RouterAlgorithm.Maze_Router:
+                    return new Router_Maze(c);
 
                 case RouterAlgorithm.ROR_RANDOM:
                     return new Router_RoR_Random(c);

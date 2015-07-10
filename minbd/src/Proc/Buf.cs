@@ -70,7 +70,7 @@ namespace ICSimulator
                 mapping.Remove(f.packet);
                 putPromise(f.packet._promise);
 
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("reclaimed promise {0} from packet {1}, count now {2}", f.packet._promise, f.packet, promises.Count);
 #endif
 

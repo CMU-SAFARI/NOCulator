@@ -79,7 +79,8 @@ namespace ICSimulator
 
         NEW_CF,
         NEW_OF,
-        NEW_GP
+        NEW_GP,
+        Maze_Router
     }
 
     public class RouterConfig : ConfigGroup

@@ -85,7 +85,7 @@ namespace ICSimulator
 
         private void getMPKI()
         {
-#if DEBUG
+#if DEBUG_
             Console.Write("\n:: cycle {0} ::",
                     Simulator.CurrentRound);
 #endif

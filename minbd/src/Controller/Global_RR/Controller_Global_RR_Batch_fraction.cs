@@ -120,7 +120,7 @@ namespace ICSimulator
                 }
                 // if there is no need to throttle. This should not be the case because if netutil > some threshold, there should be some high nodes exist in the network
                 isThrottling = (total_high>0)?true:false;
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("total High = {0}",total_high);
 #endif
                 Random randGen = new Random();
@@ -128,13 +128,13 @@ namespace ICSimulator
                 {
                     int index = randGen.Next(total_high--);
                     cluster_pool.addNewNode(tempHigh[index],MPKI[tempHigh[index]]);
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("Adding {0} to the cluster", tempHigh[index]);
 #endif
                     current_MPKI_cluster += MPKI[tempHigh[index]];
                     tempHigh.RemoveAt(index);
                 }
-#if DEBUG
+#if DEBUG_
                 for(int i=0;i<Config.N;i++)
                 {
                     if(cluster_pool.isInHighCluster(i))

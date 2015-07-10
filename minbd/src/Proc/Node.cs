@@ -81,37 +81,52 @@ namespace ICSimulator
             m_router = r;
         }
 
+        static int totalPcks = 0;
+        public bool healthy = true;
+
+        public static bool initialSynthSilence = false;
+
         void synthGen(double rate)
         {
-            if (Simulator.rand.NextDouble() < rate)
+            if ((rate < 0 && totalPcks > rate) || Simulator.rand.NextDouble() < rate)
             {
                 if (m_inj_pool.Count > Config.synthQueueLimit)
                     Simulator.stats.synth_queue_limit_drop.Add();
-                else
+                else if(initialSynthSilence == false)
                 {
                     int dest = m_coord.ID;
                     Coord c = new Coord(dest);
-                    switch (Config.synthPattern) {
-                        case SynthTrafficPattern.UR:
-                            dest = Simulator.rand.Next(Config.N);
-                            c = new Coord(dest);
-                            break;
-                        case SynthTrafficPattern.BC:
-                            dest = ~dest & (Config.N - 1);
-                            c = new Coord(dest);
-                            break;
-                        case SynthTrafficPattern.TR:
-                            c = new Coord(m_coord.y, m_coord.x);
-                            break;
-                    }
+                    
+                    do
+                    {
+                        switch (Config.synthPattern)
+                        {
+                            case SynthTrafficPattern.UR:
+                                dest = Simulator.rand.Next(Config.N);
+                                c = new Coord(dest);
+                                break;
+
+                            case SynthTrafficPattern.BC:
+                                dest = ~dest & (Config.N - 1);
+                                c = new Coord(dest);
+                                break;
+
+                            case SynthTrafficPattern.TR:
+                                c = new Coord(m_coord.y, m_coord.x);
+                                break;
+                        }
+                    } while (!router.canReach[dest]);
                     SynthPacket p = new SynthPacket(m_coord, c);
                     queuePacket(p);
+                    totalPcks--;
                 }
             }
         }
 
         public void doStep()
         {
+            if (healthy == false)
+                return;
             if (Config.synthGen)
             {
                 synthGen(Config.synthRate);

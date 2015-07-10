@@ -91,7 +91,7 @@ namespace ICSimulator
                 }
 
             if (bestDir != -1) linkIn[bestDir].Out = null;
-#if DEBUG
+#if DEBUG_
             if (ret != null)
                 Console.WriteLine("ejecting flit {0}.{1} at node {2} cyc {3}", ret.packet.ID, ret.flitNr, coord, Simulator.CurrentRound);
 #endif
@@ -223,7 +223,7 @@ namespace ICSimulator
                     else
                         throw new Exception("what???inject null flits??");
                     input[c++] = inj;
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("injecting flit {0}.{1} at node {2} cyc {3}",
                             m_injectSlot.packet.ID, m_injectSlot.flitNr, coord, Simulator.CurrentRound);
 #endif

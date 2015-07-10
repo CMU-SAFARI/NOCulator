@@ -175,7 +175,7 @@ namespace ICSimulator
                 Console.WriteLine("Processor {0}: {1} ({2} outstanding)",
                                   m_ID, m_ins.totalInstructionsRetired,
                                   m_ins.outstandingReqs);
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("-- outstanding:");
                 foreach (MSHR m in m_mshrs)
                 {

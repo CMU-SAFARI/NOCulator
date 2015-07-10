@@ -261,7 +261,10 @@ namespace ICSimulator
         //public SampledStat[] send_buf_bysrc, rcv_buf_bydest;
 
         public SampledStat   net_latency,
-                             total_latency;
+                             total_latency,
+                             total_interval_latency,
+                             total_interval_hopCnt,
+                             total_after_change_latency;
         public SampledStat[] net_latency_bysrc, 
                              total_latency_bysrc;
         public SampledStat[] net_latency_bydest, 

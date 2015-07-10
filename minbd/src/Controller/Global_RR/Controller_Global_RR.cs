@@ -29,7 +29,7 @@ namespace ICSimulator
             for (int i = 0; i < Config.N; i++)
                 avg = avg + MPKI[i];
             avg = avg/Config.N;
-#if DEBUG
+#if DEBUG_
             Console.WriteLine("NOT THROTTLING->Estimating MPKI, max_thresh {1}: avg MPKI {0}",avg,Config.MPKI_max_thresh);
 #endif
             //greater than the max threshold
@@ -185,7 +185,7 @@ namespace ICSimulator
         }
         public virtual void setThrottling()
         {
-#if DEBUG
+#if DEBUG_
             Console.Write("\n:: cycle {0} ::",
                     Simulator.CurrentRound);
 #endif
@@ -204,7 +204,7 @@ namespace ICSimulator
                     else
                         throw new Exception("MPKI error!");
                 }
-#if DEBUG
+#if DEBUG_
                 if(MPKI[i]>1000)
                 {
                     Console.WriteLine("node:{2} MPKI:{0} warmup cycles:{1}",MPKI[i],Config.warmup_cyc,i);
@@ -225,18 +225,18 @@ namespace ICSimulator
                 //check if we can go back to FFA
                 for (int i = 0; i < Config.N; i++)
                 {
-#if DEBUG
+#if DEBUG_
                     Console.Write("[{1}] {0} |",(int)MPKI[i],i); 
 #endif
                     avg = avg + MPKI[i];
                 }
                 avg = avg/Config.N;            
-#if DEBUG
+#if DEBUG_
                 Console.WriteLine("THROTTLING->Estimating MPKI, min_thresh {1}: avg MPKI {0}",avg,Config.MPKI_min_thresh);
 #endif
                 if(avg < Config.MPKI_min_thresh)
                 {
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine("\n****OFF****Transition from Throttle mode to FFA! with avg MPKI {0}\n",avg);
 #endif
                     isThrottling = false;
@@ -250,7 +250,7 @@ namespace ICSimulator
 
                 if (thresholdTrigger()) // an abstract fn() that trigger whether to start throttling or not
                 {
-#if DEBUG
+#if DEBUG_
                     Console.Write("Throttle mode turned on: cycle {0} (",
                             Simulator.CurrentRound);
 #endif
@@ -265,7 +265,7 @@ namespace ICSimulator
                             total_high++;
                             //throttleTable[i] = Simulator.rand.Next(Config.num_epoch);
                             setThrottleRate(i, true);
-#if DEBUG
+#if DEBUG_
                             Console.Write("#ON#:Node {0} with MPKI {1} ",i,MPKI[i]);
 #endif
                         }
@@ -273,13 +273,13 @@ namespace ICSimulator
                         {
                             throttleTable[i]=0;
                             setThrottleRate(i, false);
-#if DEBUG
+#if DEBUG_
                             Console.Write("@OFF@:Node {0} with MPKI {1} prev_MPKI {2} ",i,MPKI[i],prev_MPKI[i]);
 #endif
                         }
                     }
                     setThrottleTable();
-#if DEBUG
+#if DEBUG_
                     Console.WriteLine(")");
 #endif
                     isThrottling = true;
