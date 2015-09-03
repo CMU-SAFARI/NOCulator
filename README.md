@@ -1,4 +1,4 @@
-# NoCSIM
+# NOCulator
 
 Command-line options for different router designs available in hring simulator:
 
