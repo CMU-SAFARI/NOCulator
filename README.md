@@ -1,3 +1,6 @@
+NOCulator is a network-on-chip simulator providing cycle-accurate performance models for a wide variety of networks (mesh, torus, ring, hierarchical ring, flattened butterfly) and routers (buffered, bufferless, Adaptive Flow Control, minBD, HiRD).
+
+
 # NOCulator
 
 Command-line options for different router designs available in hring simulator:
