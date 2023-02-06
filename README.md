@@ -89,7 +89,7 @@ HiRD router design and the hierarchical ring interconnect:
 "Design and Evaluation of Hierarchical Rings with Deflection Routing", SBAC-PAD 2014.
 Paper (PDF): https://people.inf.ethz.ch/omutlu/pub/hierarchical-rings-with-deflection_sbacpad14.pdf
 
-Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel Loh, and Onur Mutlu,
+- Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel Loh, and Onur Mutlu,
 "A Case for Hierarchical Rings with Deflection Routing: An Energy-Efficient On-Chip Communication Substrate"
 Parallel Computing (PARCO), 2016.
 Paper (PDF): https://arxiv.org/pdf/1602.06005.pdf
