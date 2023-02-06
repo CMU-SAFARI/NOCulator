@@ -77,13 +77,21 @@ bufrings_inf_credit: ideal buffers (no credits/no capacity limits
 -topology BufRingNetworkMulti -bufrings_n 8 -bufrings_levels 3 -bufrings_inf_credit false -bufrings_L2G 8 -bufrings_G2L 4 -bufrings_localbuf 4 -bufrings_globalbuf 8
 
 
-Please cite these following papers if you use this simulator:
+Please cite the following papers if you use this simulator:
 
 MinBD router architecture:
 - Chris Fallin, Greg Nazario, Xiangyao Yu, Kevin Chang, Rachata Ausavarungnirun, Onur Mutlu.
 MinBD: Minimally-Buffered Deflection Routing for Energy-Efficient Interconnect. NoCs 2012.
+Paper (PDF): https://people.inf.ethz.ch/omutlu/pub/minimally-buffered-deflection-router_nocs12.pdf
 
 HiRD router design and the hierarchical ring interconnect:
 - Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel H. Loh, Onur Mutlu,
 "Design and Evaluation of Hierarchical Rings with Deflection Routing", SBAC-PAD 2014.
+Paper (PDF): https://people.inf.ethz.ch/omutlu/pub/hierarchical-rings-with-deflection_sbacpad14.pdf
+
+Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel Loh, and Onur Mutlu,
+"A Case for Hierarchical Rings with Deflection Routing: An Energy-Efficient On-Chip Communication Substrate"
+Parallel Computing (PARCO), 2016.
+Paper (PDF): https://arxiv.org/pdf/1602.06005.pdf
+
 
