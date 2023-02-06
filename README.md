@@ -45,12 +45,18 @@ network, double the packet size (i.e., -router.dataPacketSize 8 -router.maxPacke
 
 meshEjectTrial is the width of ejection ports.
 
+CHIPPER is described in the following paper:
+
+Chris Fallin, Chris Craik, and Onur Mutlu,
+"CHIPPER: A Low-Complexity Bufferless Deflection Router"
+Paper (PDF): https://people.inf.ethz.ch/omutlu/pub/chipper_hpca11.pdf
+
 
 # VC-Buffered
 -router.algorithm DR_AFC -afc_force true -afc_force_buffered true
 -meshEjectTrial 2
 
-# HiRD
+# HiRD (Hierarchical Rings with Deflection Routing)
 
 -topology XXXX
 
