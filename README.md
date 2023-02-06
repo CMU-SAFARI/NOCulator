@@ -84,6 +84,14 @@ HR_16_8drop:
 
 HR_32_8drop:
     32x32, each local ring has 8 bridge router to connect to the global ring
+    
+    
+HiRD is described in the following papers:
+
+Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel H. Loh, Onur Mutlu, "Design and Evaluation of Hierarchical Rings with Deflection Routing", SBAC-PAD 2014. Paper (PDF): https://people.inf.ethz.ch/omutlu/pub/hierarchical-rings-with-deflection_sbacpad14.pdf
+
+Rachata Ausavarungnirun, Chris Fallin, Xiangyao Yu, Kevin Chang, Greg Nazario, Reetuparna Das, Gabriel Loh, and Onur Mutlu, "A Case for Hierarchical Rings with Deflection Routing: An Energy-Efficient On-Chip Communication Substrate" Parallel Computing (PARCO), 2016. Paper (PDF): https://arxiv.org/pdf/1602.06005.pdf
+
 
 
 # Hierarchical Buffered Ring, infinite buffers:
