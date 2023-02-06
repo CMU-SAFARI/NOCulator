@@ -5,9 +5,7 @@ NOCulator is a network-on-chip simulator providing cycle-accurate performance mo
 
 Please see below for command-line options.
 
-#########
 # References
-#########
 
 The following papers describe the networks already implemented by NOCulator.
 Please cite the following papers if you use this simulator:
